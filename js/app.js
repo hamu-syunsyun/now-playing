@@ -7,6 +7,7 @@ const source = await import(demo ? './demo.js' : './spotify.js');
 
 const $ = (id) => document.getElementById(id);
 const body = document.body;
+body.dataset.view = 'starting'; // ここまで来たら「ファイルを直接開いています」の案内は出さない
 const el = {
   art: $('art'), title: $('title'), artist: $('artist'),
   lyrics: $('lyrics'), inner: $('lyricsInner'), note: $('lyricsNote'),
@@ -35,6 +36,8 @@ let shuffle = false;
 let repeat = 'off';
 let device = null;
 let liked = false;
+let showing = 0;                     // 曲の切り替えの通し番号。古い切り替えの結果を捨てるのに使う
+let shown = false;                   // 再生画面に曲を出し終えたか
 
 // 機能を足す前にログインしたままだと、お気に入りやプレイリストの許可がない
 const fullAccess = () => demo || auth.hasAllScopes();
@@ -96,32 +99,71 @@ $('connect').addEventListener('click', () => {
 
 // ---------- 曲が変わったとき ----------
 
-function showTrack(t) {
+// 画面の中身を入れ替える。対応しているブラウザでは、前の画面から次の画面へ溶けるように切り替わる
+function swap(change) {
+  if (!document.startViewTransition || document.hidden) { change(); return; }
+  const vt = document.startViewTransition(change);
+  // 切り替えの途中で次の切り替えが来ると、前のものは打ち切られる。それは失敗ではない
+  vt.ready.catch(() => {});
+  vt.finished.catch(() => {});
+}
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function preload(url) {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.src = url;
+  await img.decode().catch(() => {});
+}
+
+const LYRICS_WAIT_MS = 1200; // 歌詞がこれより遅ければ、先に曲だけ切り替えて歌詞はあとから出す
+
+// 曲が変わったら、ジャケット・色・歌詞を裏でそろえてから一度に切り替える。
+// ばらばらに届いた順に出すと、色、絵、歌詞が別々のタイミングで変わってガタつく。
+async function showTrack(t) {
   track = t;
+  synced = null; // 前の曲の歌詞を新しい曲の時間で光らせない
+  const my = ++showing;
   document.title = t.artist ? `${t.title} – ${t.artist}` : t.title;
-  el.title.textContent = t.title;
-  el.artist.textContent = t.artist;
-  el.all.textContent = fmt(t.duration);
 
-  el.art.classList.remove('ready');
-  if (t.art) {
-    el.art.onload = () => el.art.classList.add('ready');
-    el.art.src = t.art;
-    el.art.alt = `${t.title} のジャケット`;
-    paletteFrom(t.art).then((p) => { if (track === t) setColors(p); });
-  } else {
-    el.art.removeAttribute('src');
-    setColors(DEFAULT);
-  }
+  const lyricsReady = source.getLyrics(t).catch(() => null);
+  const LATE = {};
+  const [palette, lyrics] = await Promise.all([
+    t.art ? paletteFrom(t.art) : DEFAULT,
+    Promise.race([lyricsReady, wait(LYRICS_WAIT_MS).then(() => LATE)]),
+    t.art ? preload(t.art) : null,
+  ]);
+  if (my !== showing) return;
 
-  // 読み込みが終わるまでは前の曲の配置のままにして、歌詞だけ消しておく
-  fillLyrics(null);
-  source.getLyrics(t).then((l) => { if (track === t) renderLyrics(l); });
+  swap(() => {
+    body.dataset.view = 'player';
+    shown = true;
+    el.title.textContent = t.title;
+    el.artist.textContent = t.artist;
+    el.all.textContent = fmt(t.duration);
+    if (t.art) {
+      el.art.src = t.art;
+      el.art.alt = `${t.title} のジャケット`;
+      el.art.classList.add('ready');
+    } else {
+      el.art.removeAttribute('src');
+      el.art.classList.remove('ready');
+    }
+    setColors(palette);
+    paintLike(false);
+    el.like.hidden = !fullAccess() || !t.hasLyrics; // ポッドキャストの回はお気に入りの対象外
+    if (lyrics === LATE) {
+      fillLyrics(null); // 配置は前の曲のまま、歌詞だけ空にしておく
+    } else {
+      fillLyrics(lyrics);
+      body.dataset.lyrics = kindOf(lyrics);
+    }
+  });
+
+  if (lyrics === LATE) lyricsReady.then((l) => { if (my === showing) renderLyrics(l); });
   refreshUpNext(1500);
-
-  paintLike(false);
-  el.like.hidden = !fullAccess() || !t.hasLyrics; // ポッドキャストの回はお気に入りの対象外
-  if (!el.like.hidden) source.isLiked(t).then((v) => { if (track === t) paintLike(v); }).catch(() => {});
+  if (fullAccess() && t.hasLyrics) source.isLiked(t).then((v) => { if (track === t) paintLike(v); }).catch(() => {});
 }
 
 function paintLike(v) {
@@ -150,14 +192,10 @@ function refreshUpNext(delay) {
 const GAP_MS = 5000; // 歌い出しまでこれ以上あくなら、前奏として点を出す
 
 // 歌詞のあり・なしで配置が変わるときは、ジャケットが飛ばないように動かして切り替える
+const kindOf = (l) => (l?.synced?.length ? 'synced' : l?.plain ? 'plain' : 'none');
+
 function renderLyrics(l) {
-  const kind = l?.synced?.length ? 'synced' : l?.plain ? 'plain' : 'none';
-  if (kind !== body.dataset.lyrics && document.startViewTransition && !document.hidden) {
-    document.startViewTransition(() => { fillLyrics(l); body.dataset.lyrics = kind; });
-  } else {
-    fillLyrics(l);
-    body.dataset.lyrics = kind;
-  }
+  swap(() => { fillLyrics(l); body.dataset.lyrics = kindOf(l); });
 }
 
 function fillLyrics(l) {
@@ -313,13 +351,15 @@ async function poll() {
 function apply(pb, at) {
   if (!pb) {
     track = null;
+    shown = false;
+    showing++;
     body.dataset.view = 'empty';
     body.classList.remove('playing');
     setColors(DEFAULT);
     document.title = '再生中';
     return;
   }
-  body.dataset.view = 'player';
+  if (shown) body.dataset.view = 'player'; // 最初の1曲は、絵と色がそろってから showTrack が出す
   if (pb.track.id !== track?.id) showTrack(pb.track);
   isPlaying = pb.isPlaying;
   anchor = { progress: pb.progress, at };

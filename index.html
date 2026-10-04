@@ -15,7 +15,20 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20261004205327">
+  <!-- 画面のプログラムは全部この版番号つきで読む。古いものと新しいものが混ざらないようにするため -->
+  <script type="importmap">
+  {
+    "imports": {
+      "./js/auth.js": "./js/auth.js?v=20261004205327",
+      "./js/color.js": "./js/color.js?v=20261004205327",
+      "./js/panel.js": "./js/panel.js?v=20261004205327",
+      "./js/spotify.js": "./js/spotify.js?v=20261004205327",
+      "./js/lyrics.js": "./js/lyrics.js?v=20261004205327",
+      "./js/demo.js": "./js/demo.js?v=20261004205327"
+    }
+  }
+  </script>
 </head>
 <body data-view="loading" data-lyrics="none">
 
@@ -47,7 +60,7 @@
 
   <main class="stage" id="stage">
     <section class="side">
-      <div class="art"><img id="art" alt=""></div>
+      <div class="art"><img id="art" alt="" crossorigin="anonymous"></div>
       <div class="meta">
         <h1 id="title"></h1>
         <p id="artist"></p>
@@ -120,6 +133,6 @@
 
   <p class="toast" id="toast" role="status"></p>
 
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/app.js?v=20261004205327"></script>
 </body>
 </html>
