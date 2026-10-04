@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#17191c">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="再生画面">
+  <title>再生中</title>
+  <link rel="icon" href="icons/favicon.png">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-view="loading" data-lyrics="none">
+
+  <div class="backdrop" id="backdrop" aria-hidden="true"></div>
+
+  <p class="stuck">この画面のまま動かないときは、ファイルを直接開いています。start.bat を起動して http://127.0.0.1:5173/ を開いてください。</p>
+
+  <main class="setup" id="setup">
+    <h1>Spotifyとつなぐ</h1>
+    <p class="setup-error" id="setupError" hidden></p>
+    <ol>
+      <li>
+        <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify for Developers のダッシュボード</a>を開き、
+        いつものアカウントでログインして「Create app」を押す。アプリ名と説明は何でもかまいません。
+      </li>
+      <li>
+        「Redirect URIs」に下のアドレスを入れて Add を押す。使うAPIは「Web API」にチェック。
+        <span class="copy-row">
+          <code id="redirectUri"></code>
+          <button type="button" id="copyUri">コピー</button>
+        </span>
+      </li>
+      <li>
+        保存したらアプリの画面に出る Client ID をここに貼る。
+        <input id="clientId" type="text" inputmode="latin" autocomplete="off" spellcheck="false" placeholder="Client ID（32文字）">
+      </li>
+    </ol>
+    <button type="button" class="primary" id="connect">Spotifyでログイン</button>
+    <p class="setup-note">Client ID とログイン情報はこのブラウザの中だけに保存されます。<a href="?demo">見た目だけ先に試す</a></p>
+  </main>
+
+  <main class="stage" id="stage">
+    <section class="side">
+      <div class="art"><img id="art" alt=""></div>
+      <div class="meta">
+        <h1 id="title"></h1>
+        <p id="artist"></p>
+      </div>
+      <div class="seek">
+        <span id="timeNow">0:00</span>
+        <div class="seek-track" id="seek" role="slider" aria-label="再生位置" tabindex="-1">
+          <div class="seek-fill" id="seekFill"></div>
+          <div class="seek-knob" id="seekKnob"></div>
+        </div>
+        <span id="timeAll">0:00</span>
+      </div>
+      <div class="controls">
+        <button type="button" id="prev" aria-label="前の曲">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>
+        </button>
+        <button type="button" id="toggle" class="big" aria-label="再生・一時停止">
+          <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>
+          <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
+        </button>
+        <button type="button" id="next" aria-label="次の曲">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>
+        </button>
+        <button type="button" id="like" class="push" aria-label="お気に入りに入れる" aria-pressed="false" hidden>
+          <svg class="i-heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5 4.3 12.9a4.9 4.9 0 0 1 7-6.9l.7.7.7-.7a4.9 4.9 0 0 1 7 6.9z"/></svg>
+        </button>
+        <button type="button" id="openSearch" aria-label="曲を探す">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.3 4.3-1.4 1.4-4.3-4.3A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>
+        </button>
+        <button type="button" id="openMenu" aria-label="ライブラリとメニュー">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4zM4 11h16v2H4zM4 16h10v2H4z"/></svg>
+        </button>
+        <button type="button" id="full" aria-label="全画面の切り替え">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v2H6v4H4zM14 4h6v6h-2V6h-4zM4 14h2v4h4v2H4zM18 14h2v6h-6v-2h4z"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <section class="lyrics" id="lyrics" aria-label="歌詞">
+      <div class="lyrics-inner" id="lyricsInner"></div>
+    </section>
+
+    <p class="lyrics-note" id="lyricsNote"></p>
+  </main>
+
+  <p class="empty" id="empty">Spotifyで曲を再生すると、ここにジャケットと歌詞が出ます。</p>
+
+  <div class="bar" id="bar" aria-hidden="true"><div class="bar-fill" id="barFill"></div></div>
+
+  <div class="sheet" id="sheet" hidden>
+    <div class="sheet-panel" role="dialog" aria-label="メニュー">
+      <nav class="tabs" id="tabs">
+        <button type="button" data-tab="search">探す</button>
+        <button type="button" data-tab="library">ライブラリ</button>
+        <button type="button" data-tab="queue">次に再生</button>
+        <button type="button" data-tab="device">端末と音量</button>
+        <button type="button" id="closeSheet" class="close">閉じる</button>
+      </nav>
+      <div class="sheet-body" id="sheetBody"></div>
+    </div>
+  </div>
+
+  <p class="toast" id="toast" role="status"></p>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

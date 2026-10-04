@@ -1,0 +1,12 @@
+{
+  "name": "Spotify 再生画面",
+  "short_name": "再生画面",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#17191c",
+  "theme_color": "#17191c",
+  "icons": [
+    { "src": "icons/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
