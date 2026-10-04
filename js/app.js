@@ -114,7 +114,8 @@ function showTrack(t) {
     setColors(DEFAULT);
   }
 
-  renderLyrics(null);
+  // 読み込みが終わるまでは前の曲の配置のままにして、歌詞だけ消しておく
+  fillLyrics(null);
   source.getLyrics(t).then((l) => { if (track === t) renderLyrics(l); });
   refreshUpNext(1500);
 
@@ -148,9 +149,20 @@ function refreshUpNext(delay) {
 
 const GAP_MS = 5000; // 歌い出しまでこれ以上あくなら、前奏として点を出す
 
+// 歌詞のあり・なしで配置が変わるときは、ジャケットが飛ばないように動かして切り替える
 function renderLyrics(l) {
-  synced = l?.synced || null;
-  if (synced?.length && synced[0].t > GAP_MS) synced = [{ t: 0, text: '' }, ...synced];
+  const kind = l?.synced?.length ? 'synced' : l?.plain ? 'plain' : 'none';
+  if (kind !== body.dataset.lyrics && document.startViewTransition && !document.hidden) {
+    document.startViewTransition(() => { fillLyrics(l); body.dataset.lyrics = kind; });
+  } else {
+    fillLyrics(l);
+    body.dataset.lyrics = kind;
+  }
+}
+
+function fillLyrics(l) {
+  synced = l?.synced?.length ? l.synced : null;
+  if (synced && synced[0].t > GAP_MS) synced = [{ t: 0, text: '' }, ...synced];
   lineEls = [];
   marked = [];
   browse = 0;
@@ -160,7 +172,6 @@ function renderLyrics(l) {
   el.inner.style.transform = '';
   el.lyrics.scrollTop = 0;
   el.note.textContent = l?.instrumental ? '歌のない曲です' : '';
-  body.dataset.lyrics = synced ? 'synced' : l?.plain ? 'plain' : 'none';
 
   const lines = synced ? synced.map((s) => s.text) : l?.plain || [];
   for (const [i, text] of lines.entries()) {

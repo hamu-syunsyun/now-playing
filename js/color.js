@@ -42,7 +42,17 @@ function backdropFrom(img, bg, light) {
   ctx.globalAlpha = light ? 0.6 : 0.4;
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, 160, 160);
-  return out.toDataURL('image/jpeg', 0.85);
+  // 上下の縁は地の色に溶かす。iPhone は時計のあたりとホームバーのあたりを地の色で塗るので、境目が見えなくなる
+  const edge = ctx.createLinearGradient(0, 0, 0, 160);
+  const clear = bg.replace(')', ' / 0)'); // 同じ色のまま透明にする。'transparent' だと途中が黒ずむ
+  edge.addColorStop(0, bg);
+  edge.addColorStop(0.16, clear);
+  edge.addColorStop(0.84, clear);
+  edge.addColorStop(1, bg);
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = edge;
+  ctx.fillRect(0, 0, 160, 160);
+  return out.toDataURL('image/png');
 }
 
 export async function paletteFrom(url) {

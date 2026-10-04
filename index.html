@@ -61,28 +61,31 @@
         <span id="timeAll">0:00</span>
       </div>
       <div class="controls">
-        <button type="button" id="prev" aria-label="前の曲">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>
-        </button>
-        <button type="button" id="toggle" class="big" aria-label="再生・一時停止">
-          <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>
-          <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
-        </button>
-        <button type="button" id="next" aria-label="次の曲">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>
-        </button>
-        <button type="button" id="like" class="push" aria-label="お気に入りに入れる" aria-pressed="false" hidden>
-          <svg class="i-heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5 4.3 12.9a4.9 4.9 0 0 1 7-6.9l.7.7.7-.7a4.9 4.9 0 0 1 7 6.9z"/></svg>
-        </button>
-        <button type="button" id="openSearch" aria-label="曲を探す">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.3 4.3-1.4 1.4-4.3-4.3A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>
-        </button>
-        <button type="button" id="openMenu" aria-label="ライブラリとメニュー">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4zM4 11h16v2H4zM4 16h10v2H4z"/></svg>
-        </button>
-        <button type="button" id="full" aria-label="全画面の切り替え">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v2H6v4H4zM14 4h6v6h-2V6h-4zM4 14h2v4h4v2H4zM18 14h2v6h-6v-2h4z"/></svg>
-        </button>
+        <div class="c-side">
+          <button type="button" id="like" aria-label="お気に入りに入れる" aria-pressed="false" hidden>
+            <svg class="i-heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5 4.3 12.9a4.9 4.9 0 0 1 7-6.9l.7.7.7-.7a4.9 4.9 0 0 1 7 6.9z"/></svg>
+          </button>
+        </div>
+        <div class="c-main">
+          <button type="button" id="prev" aria-label="前の曲">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>
+          </button>
+          <button type="button" id="toggle" class="big" aria-label="再生・一時停止">
+            <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>
+            <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
+          </button>
+          <button type="button" id="next" aria-label="次の曲">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>
+          </button>
+        </div>
+        <div class="c-side end">
+          <button type="button" id="openSearch" aria-label="曲を探す">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.3 4.3-1.4 1.4-4.3-4.3A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>
+          </button>
+          <button type="button" id="openMenu" aria-label="ライブラリとメニュー">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v2H4zM4 11h16v2H4zM4 16h10v2H4z"/></svg>
+          </button>
+        </div>
       </div>
       <p class="upnext" id="upNext"></p>
     </section>
@@ -93,6 +96,10 @@
 
     <p class="lyrics-note" id="lyricsNote"></p>
   </main>
+
+  <button type="button" id="full" class="corner" aria-label="全画面の切り替え">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v2H6v4H4zM14 4h6v6h-2V6h-4zM4 14h2v4h4v2H4zM18 14h2v6h-6v-2h4z"/></svg>
+  </button>
 
   <p class="empty" id="empty">Spotifyで曲を再生すると、ここにジャケットと歌詞が出ます。</p>
 

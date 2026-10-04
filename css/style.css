@@ -167,16 +167,18 @@ body:not(.playing) .art { box-shadow: 0 16px 40px -18px rgb(0 0 0 / .5), 0 6px 1
 .seek-track:hover .seek-knob, .seek-track.dragging .seek-knob { transform: scale(1); }
 @media (hover: none) { .seek-knob { transform: scale(1); } }
 
-/* 操作ボタン。再生だけを塗りつぶして主役にする */
+/* 操作ボタン。曲送りを真ん中に置き、再生だけを塗りつぶして主役にする */
+.side { container-type: inline-size; }
 .controls {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 4px;
   margin: 6px -9px 0;
   transition: opacity .4s ease;
 }
-.controls .push { margin-left: auto; }
-.controls button {
+.c-main, .c-side { display: flex; align-items: center; gap: 4px; }
+.c-side.end { justify-content: flex-end; }
+.controls button, .corner {
   display: grid;
   place-items: center;
   width: 42px;
@@ -185,8 +187,25 @@ body:not(.playing) .art { box-shadow: 0 16px 40px -18px rgb(0 0 0 / .5), 0 6px 1
   opacity: .72;
   transition: opacity .15s ease, background-color .15s ease, transform .15s ease;
 }
-.controls button:hover { opacity: 1; background: color-mix(in srgb, currentColor 13%, transparent); }
-.controls button:active { transform: scale(.92); }
+.controls button:hover, .corner:hover { opacity: 1; background: color-mix(in srgb, currentColor 13%, transparent); }
+.controls button:active, .corner:active { transform: scale(.92); }
+@container (max-width: 340px) {
+  .controls button { width: 36px; height: 36px; }
+  .controls .big { width: 48px; height: 48px; }
+}
+
+/* 全画面は画面の右上。触っていないあいだは消える */
+.corner {
+  display: none;
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 2;
+}
+body[data-view="player"] .corner { display: grid; }
+.corner svg { width: 20px; height: 20px; fill: currentColor; }
+@media (hover: hover) { body.idle .corner { opacity: 0; } }
+@media (max-height: 320px) { body[data-view="player"] .corner { display: none; } }
 .controls svg { width: 21px; height: 21px; fill: currentColor; }
 .controls .big {
   width: 54px;
@@ -301,6 +320,14 @@ body.playing .i-play { display: none; }
   opacity: .5;
 }
 .lyrics-note:empty { display: none; }
+
+/* 歌詞のあり・なしで配置が変わるとき、ジャケットを飛ばさずに動かす */
+.art { view-transition-name: art; }
+.meta { view-transition-name: meta; }
+.seek { view-transition-name: seek; }
+.controls { view-transition-name: controls; }
+::view-transition-group(*) { animation-duration: .65s; animation-timing-function: cubic-bezier(.2, .75, .2, 1); }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .5s; }
 
 /* ---------- 歌詞がない曲はジャケットを真ん中に大きく ---------- */
 [data-lyrics="none"] .stage { grid-template-columns: minmax(0, 1fr); --art: min(60vh, 78vw); }
@@ -581,7 +608,8 @@ body.playing .i-play { display: none; }
   *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
 }
 
-/* ホーム画面から開いた iPhone では dvh がステータスバーのぶん短くなる */
+/* ホーム画面から開いた iPhone は、画面の高さをステータスバーのぶん短く報告することがある */
 @media (display-mode: standalone) {
-  .stage, .empty, .setup { height: 100vh; }
+  html { min-height: calc(100% + env(safe-area-inset-top)); }
+  .stage, .empty, .setup { height: calc(100vh + env(safe-area-inset-top)); }
 }
