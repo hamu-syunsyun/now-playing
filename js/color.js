@@ -17,7 +17,7 @@ function rgbToHsl(r, g, b) {
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const hsl = (h, s, l) => `hsl(${h.toFixed(0)} ${(s * 100).toFixed(0)}% ${(l * 100).toFixed(0)}%)`;
 
-export const DEFAULT = { bg: '#17191c', fg: '#f1efe9', backdrop: '' };
+export const DEFAULT = { bg: '#17191c', fg: '#f1efe9', backdrop: '', tone: 'dark' };
 
 function canvasOf(size) {
   const c = document.createElement('canvas');
@@ -75,7 +75,7 @@ export async function paletteFrom(url) {
     // 白やごく淡い色のジャケットだけ明るい画面にする。色のはっきりした明るめの地は、暗く沈めたほうが映える
     if (l > 0.86 || (l > 0.72 && s < 0.25)) {
       const bg = hsl(h, Math.min(s, 0.5), clamp(l, 0.82, 0.92));
-      return { bg, fg: hsl(h, Math.min(s, 0.4), 0.13), backdrop: backdropFrom(img, bg, true) };
+      return { bg, fg: hsl(h, Math.min(s, 0.4), 0.13), backdrop: backdropFrom(img, bg, true), tone: 'light' };
     }
 
     // 文字: ジャケットの中でいちばん目立つ鮮やかな色を、読める明るさまで持ち上げる
@@ -87,7 +87,7 @@ export async function paletteFrom(url) {
       : hsl(h, 0.1, 0.93);
 
     const bg = hsl(h, Math.min(s, 0.6), clamp(l, 0.12, 0.26));
-    return { bg, fg, backdrop: backdropFrom(img, bg, false) };
+    return { bg, fg, backdrop: backdropFrom(img, bg, false), tone: 'dark' };
   } catch {
     return DEFAULT;
   }

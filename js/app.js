@@ -12,7 +12,7 @@ const el = {
   lyrics: $('lyrics'), inner: $('lyricsInner'), note: $('lyricsNote'),
   seek: $('seek'), seekFill: $('seekFill'), seekKnob: $('seekKnob'),
   fill: $('barFill'), now: $('timeNow'), all: $('timeAll'),
-  like: $('like'), toast: $('toast'),
+  like: $('like'), upNext: $('upNext'), toast: $('toast'),
 };
 
 const POLL_MS = 2000;
@@ -25,6 +25,9 @@ let epoch = 0;                       // 操作のたびに増やし、操作前�
 let synced = null;                   // [{ t, text }] 時刻つき歌詞
 let lineEls = [];
 let activeIndex = -2;
+let marked = [];                     // 今の行の近くにあって、距離（--d）を書き込んである行
+let browse = 0;                      // 歌詞を自分で送っているあいだのずれ（px）
+let browseTimer = 0;
 let pollTimer = 0;
 let endKicked = false;
 let dragRatio = null;                // シークバーをつまんでいるあいだの位置（0〜1）
@@ -54,8 +57,9 @@ function toast(message) {
   toastTimer = setTimeout(() => el.toast.classList.remove('show'), 4000);
 }
 
-function setColors({ bg, fg, backdrop }) {
+function setColors({ bg, fg, backdrop, tone }) {
   const root = document.documentElement;
+  root.dataset.tone = tone;
   root.style.setProperty('--bg', bg);
   root.style.setProperty('--fg', fg);
   root.style.backgroundImage = backdrop ? `url("${backdrop}")` : 'none';
@@ -112,6 +116,7 @@ function showTrack(t) {
 
   renderLyrics(null);
   source.getLyrics(t).then((l) => { if (track === t) renderLyrics(l); });
+  refreshUpNext(1500);
 
   paintLike(false);
   el.like.hidden = !fullAccess() || !t.hasLyrics; // ポッドキャストの回はお気に入りの対象外
@@ -124,9 +129,32 @@ function paintLike(v) {
   el.like.setAttribute('aria-label', v ? 'お気に入りから外す' : 'お気に入りに入れる');
 }
 
+// このあと流れる曲を1つだけ出す。Spotify 側の並びが落ち着くのを少し待ってから取りに行く
+let upNextTimer = 0;
+function refreshUpNext(delay) {
+  clearTimeout(upNextTimer);
+  el.upNext.replaceChildren();
+  const t = track;
+  upNextTimer = setTimeout(async () => {
+    const [next] = await source.getQueue().catch(() => []);
+    if (!next || track !== t) return;
+    const label = document.createElement('span');
+    label.textContent = 'つぎ';
+    const name = document.createElement('b');
+    name.textContent = next.artist ? `${next.title} – ${next.artist}` : next.title;
+    el.upNext.replaceChildren(label, name);
+  }, delay);
+}
+
+const GAP_MS = 5000; // 歌い出しまでこれ以上あくなら、前奏として点を出す
+
 function renderLyrics(l) {
   synced = l?.synced || null;
+  if (synced?.length && synced[0].t > GAP_MS) synced = [{ t: 0, text: '' }, ...synced];
   lineEls = [];
+  marked = [];
+  browse = 0;
+  el.lyrics.classList.remove('browsing');
   activeIndex = -2;
   el.inner.replaceChildren();
   el.inner.style.transform = '';
@@ -134,11 +162,16 @@ function renderLyrics(l) {
   el.note.textContent = l?.instrumental ? '歌のない曲です' : '';
   body.dataset.lyrics = synced ? 'synced' : l?.plain ? 'plain' : 'none';
 
-  const lines = synced ? synced.map((s) => s.text || '♪') : l?.plain || [];
+  const lines = synced ? synced.map((s) => s.text) : l?.plain || [];
   for (const [i, text] of lines.entries()) {
     const p = document.createElement('p');
     p.className = 'line';
-    p.textContent = text;
+    if (synced && !text) {
+      p.classList.add('gap'); // 間奏
+      p.append(...[0, 1, 2].map(() => document.createElement('i')));
+    } else {
+      p.textContent = text;
+    }
     if (synced) p.addEventListener('click', () => seekTo(synced[i].t));
     el.inner.append(p);
     lineEls.push(p);
@@ -160,7 +193,38 @@ function placeLyrics() {
   if (!synced || !lineEls.length) return;
   const target = lineEls[Math.max(activeIndex, 0)];
   const center = target.offsetTop + target.offsetHeight / 2;
-  el.inner.style.transform = `translateY(${el.lyrics.clientHeight * ACTIVE_AT - center}px)`;
+  const top = el.lyrics.clientHeight * ACTIVE_AT;
+  // 自分で送ったぶんは、歌詞の先頭と末尾を越えないように止める
+  const y = Math.min(top, Math.max(top - el.inner.offsetHeight, top - center + browse));
+  browse = y - (top - center);
+  el.inner.style.transform = `translateY(${y}px)`;
+}
+
+// 今の行と、その前後の行に「何行離れているか」を書き込む。見た目（濃さ・ぼけ）は CSS が決める
+function markLines(i) {
+  for (const p of marked) { p.style.removeProperty('--d'); p.classList.remove('now'); }
+  marked = [];
+  for (let j = i - 6; j <= i + 6; j++) {
+    const p = lineEls[j];
+    if (!p) continue;
+    p.style.setProperty('--d', Math.abs(j - i));
+    marked.push(p);
+  }
+  lineEls[i]?.classList.add('now');
+}
+
+// 歌詞を自分で送る。手を止めて3秒たつと今の行に戻る
+function browseBy(dy) {
+  if (!synced) return;
+  browse += dy;
+  el.lyrics.classList.add('browsing');
+  placeLyrics();
+  clearTimeout(browseTimer);
+  browseTimer = setTimeout(() => {
+    browse = 0;
+    el.lyrics.classList.remove('browsing');
+    placeLyrics();
+  }, 3000);
 }
 
 function frame() {
@@ -174,8 +238,7 @@ function frame() {
     if (synced) {
       const i = currentLine(pos);
       if (i !== activeIndex) {
-        lineEls[activeIndex]?.classList.remove('now');
-        lineEls[i]?.classList.add('now');
+        markLines(i);
         activeIndex = i;
         placeLyrics();
       }
@@ -191,6 +254,24 @@ function frame() {
 }
 
 new ResizeObserver(placeLyrics).observe(el.lyrics);
+
+el.lyrics.addEventListener('wheel', (e) => {
+  if (!synced) return;
+  e.preventDefault();
+  browseBy(-e.deltaY);
+}, { passive: false });
+
+let touchY = null;
+let dragging = false;
+el.lyrics.addEventListener('touchstart', (e) => { touchY = e.touches[0].clientY; dragging = false; }, { passive: true });
+el.lyrics.addEventListener('touchmove', (e) => {
+  if (!synced || touchY === null) return;
+  const y = e.touches[0].clientY;
+  if (!dragging && Math.abs(y - touchY) < 8) return;
+  dragging = true;
+  browseBy(y - touchY);
+  touchY = y;
+}, { passive: true });
 document.fonts?.ready.then(placeLyrics);
 
 // ---------- Spotify への問い合わせ ----------
@@ -304,7 +385,7 @@ const panel = createPanel({
   toast,
   messageFor,
   state: () => ({ shuffle, repeat, device }),
-  changed: () => { epoch++; kick(500); },
+  changed: () => { epoch++; kick(500); refreshUpNext(1500); },
   relogin: () => auth.login(),
 });
 

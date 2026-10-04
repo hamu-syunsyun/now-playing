@@ -1,9 +1,10 @@
-/* 色は2つだけ。どちらも再生中のジャケットから取り、JSが body に書き込む。 */
+/* 色は2つだけ。どちらも再生中のジャケットから取り、JS が html に書き込む。 */
 :root {
   --bg: #17191c;
   --fg: #f1efe9;
   --pad: clamp(16px, 4vmin, 64px);
-  --art: min(60vh, 38vw);
+  --art: min(62vh, 38vw);
+  --ease: cubic-bezier(.2, .75, .2, 1);
 }
 
 * { box-sizing: border-box; margin: 0; }
@@ -24,6 +25,19 @@ body {
   overflow: hidden;
   transition: color 1.2s ease;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ぼけた背景の縞を消すための、ごく薄い粒子 */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .1;
+  mix-blend-mode: overlay;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
@@ -43,65 +57,82 @@ body[data-view="loading"] .stuck { display: block; }
 /* ---------- 再生画面 ---------- */
 .stage {
   height: 100dvh;
+  max-width: 1760px;
+  margin: 0 auto;
   padding:
     max(var(--pad), env(safe-area-inset-top)) max(var(--pad), env(safe-area-inset-right))
     max(var(--pad), env(safe-area-inset-bottom)) max(var(--pad), env(safe-area-inset-left));
   grid-template-columns: auto minmax(0, 1fr);
-  gap: clamp(24px, 5vw, 96px);
+  gap: clamp(28px, 6vw, 120px);
   align-items: center;
 }
 
 .side { width: var(--art); min-width: 0; }
 
+/* ジャケット。止めているあいだは少し引っ込む */
 .art {
   width: var(--art);
   aspect-ratio: 1;
-  border-radius: 6px;
+  border-radius: clamp(6px, .9vmin, 12px);
   overflow: hidden;
   background: color-mix(in srgb, currentColor 10%, transparent);
-  box-shadow: 0 24px 60px -18px rgb(0 0 0 / .55);
+  box-shadow: 0 34px 80px -24px rgb(0 0 0 / .6), 0 10px 26px -10px rgb(0 0 0 / .45);
+  transform: scale(.93);
+  transition: transform .7s var(--ease), box-shadow .7s var(--ease);
 }
+body.playing .art { transform: none; }
+body:not(.playing) .art { box-shadow: 0 16px 40px -18px rgb(0 0 0 / .5), 0 6px 16px -8px rgb(0 0 0 / .4); }
 .art img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  transition: opacity .5s ease;
+  transition: opacity .6s ease;
 }
 .art img.ready { opacity: 1; }
 
-.meta { margin-top: clamp(12px, 2.4vh, 28px); }
+.meta { margin-top: clamp(14px, 2.8vh, 34px); }
 .meta h1 {
-  font-size: clamp(1.05rem, 1.1vw + 1vh, 1.9rem);
-  font-weight: 700;
-  line-height: 1.35;
+  font-size: clamp(1.15rem, 1.25vw + 1.2vh, 2.3rem);
+  font-weight: 900;
+  line-height: 1.3;
+  letter-spacing: .01em;
   font-feature-settings: "palt";
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .meta p {
-  margin-top: .25em;
-  font-size: clamp(.85rem, .7vw + .8vh, 1.2rem);
-  opacity: .65;
-  overflow-wrap: anywhere;
+  margin-top: .35em;
+  font-size: clamp(.88rem, .7vw + .85vh, 1.3rem);
+  font-weight: 500;
+  opacity: .68;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 再生位置。ここは触っていなくても出したままにする */
 .seek {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: clamp(10px, 2vh, 22px);
-  font-size: .78rem;
+  gap: 12px;
+  margin-top: clamp(10px, 2vh, 24px);
+  font-size: .74rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
   white-space: nowrap;
 }
-.seek span { opacity: .65; min-width: 2.4em; }
+.seek span { opacity: .6; min-width: 2.4em; }
 .seek span:last-child { text-align: right; }
 .seek-track {
   position: relative;
   flex: 1;
-  height: 20px;
+  height: 22px;
   cursor: pointer;
   touch-action: none;
 }
@@ -109,57 +140,94 @@ body[data-view="loading"] .stuck { display: block; }
   content: "";
   position: absolute;
   left: 0;
-  top: 8px;
-  height: 4px;
-  border-radius: 2px;
+  top: 50%;
+  height: 3px;
+  margin-top: -1.5px;
+  border-radius: 3px;
   background: currentColor;
+  transition: height .15s ease, margin .15s ease;
 }
-.seek-track::before { right: 0; opacity: .22; }
+.seek-track::before { right: 0; opacity: .2; }
 .seek-fill { width: 0; }
+.seek-track:hover::before, .seek-track:hover .seek-fill,
+.seek-track.dragging::before, .seek-track.dragging .seek-fill { height: 5px; margin-top: -2.5px; }
 .seek-knob {
   position: absolute;
-  top: 4px;
+  top: 50%;
   left: 0;
-  width: 12px;
-  height: 12px;
-  margin-left: -6px;
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
   border-radius: 50%;
   background: currentColor;
+  box-shadow: 0 2px 8px rgb(0 0 0 / .35);
   transform: scale(0);
   transition: transform .15s ease;
 }
 .seek-track:hover .seek-knob, .seek-track.dragging .seek-knob { transform: scale(1); }
 @media (hover: none) { .seek-knob { transform: scale(1); } }
 
+/* 操作ボタン。再生だけを塗りつぶして主役にする */
 .controls {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 2px;
-  margin-left: -8px;
-  margin-right: -8px;
+  gap: 4px;
+  margin: 6px -9px 0;
   transition: opacity .4s ease;
 }
 .controls .push { margin-left: auto; }
 .controls button {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  opacity: .75;
+  opacity: .72;
+  transition: opacity .15s ease, background-color .15s ease, transform .15s ease;
 }
-.controls button:hover { opacity: 1; background: color-mix(in srgb, currentColor 12%, transparent); }
-.controls svg { width: 20px; height: 20px; fill: currentColor; }
-.controls .big svg { width: 26px; height: 26px; }
+.controls button:hover { opacity: 1; background: color-mix(in srgb, currentColor 13%, transparent); }
+.controls button:active { transform: scale(.92); }
+.controls svg { width: 21px; height: 21px; fill: currentColor; }
+.controls .big {
+  width: 54px;
+  height: 54px;
+  margin: 0 6px;
+  opacity: 1;
+  background: var(--fg);
+  color: var(--bg);
+  box-shadow: 0 8px 22px -8px rgb(0 0 0 / .5);
+  transition: transform .15s ease, background-color 1.2s ease, color 1.2s ease;
+}
+.controls .big:hover { background: var(--fg); transform: scale(1.06); }
+.controls .big:active { transform: scale(.95); }
+.controls .big svg { width: 25px; height: 25px; }
+.i-play { margin-left: 2px; }
 .i-pause { display: none; }
 body.playing .i-pause { display: block; }
 body.playing .i-play { display: none; }
 
+.i-heart { fill: none !important; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+#like[aria-pressed="true"] { opacity: 1; }
+#like[aria-pressed="true"] .i-heart { fill: currentColor !important; animation: pop .35s var(--ease); }
+@keyframes pop { 40% { transform: scale(1.3); } }
+
+/* このあと流れる曲 */
+.upnext {
+  display: flex;
+  gap: .8em;
+  margin-top: clamp(8px, 1.6vh, 18px);
+  font-size: .8rem;
+  white-space: nowrap;
+  transition: opacity .4s ease;
+}
+.upnext:empty { display: none; }
+.upnext span { opacity: .5; font-weight: 700; }
+.upnext b { font-weight: 500; opacity: .8; overflow: hidden; text-overflow: ellipsis; }
+
 /* 触っていないあいだは操作ボタンとカーソルを消す。指で触る端末では出したまま */
 @media (hover: hover) {
   body.idle[data-view="player"] { cursor: none; }
-  body.idle .controls { opacity: 0; }
+  body.idle .controls, body.idle .upnext { opacity: 0; }
 }
 
 /* ---------- 歌詞 ---------- */
@@ -167,35 +235,63 @@ body.playing .i-play { display: none; }
   align-self: stretch;
   min-width: 0;
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(transparent, #000 18%, #000 78%, transparent);
-          mask-image: linear-gradient(transparent, #000 18%, #000 78%, transparent);
+  -webkit-mask-image: linear-gradient(transparent, #000 20%, #000 76%, transparent);
+          mask-image: linear-gradient(transparent, #000 20%, #000 76%, transparent);
 }
-.lyrics-inner { transition: transform .6s cubic-bezier(.2, .7, .2, 1); will-change: transform; }
+.lyrics-inner { transition: transform .7s var(--ease); will-change: transform; }
+.lyrics.browsing .lyrics-inner { transition-duration: .12s; }
 
+/* いまの行だけくっきり。離れるほど小さく、薄く、ぼける（--d は今の行からの行数） */
 .line {
-  font-size: clamp(1.15rem, 2.2vw + 1.6vh, 3.6rem);
+  font-size: clamp(1.3rem, 2.3vw + 1.8vh, 4rem);
   font-weight: 700;
-  line-height: 1.45;
-  padding: .32em 0;
-  opacity: .38;
-  transition: opacity .4s ease;
+  line-height: 1.4;
+  letter-spacing: .01em;
+  padding: .36em 0;
   overflow-wrap: anywhere;
-  max-width: 22em;
+  word-break: auto-phrase; /* 日本語を文節の切れ目で折り返す */
+  text-wrap: balance;
+  transform-origin: left center;
+  transform: scale(.9);
+  opacity: max(.12, calc(.6 - var(--d, 6) * .085));
+  filter: blur(calc(min(var(--d, 6), 6) * .5px));
+  transition: opacity .5s ease, filter .5s ease, transform .5s var(--ease);
 }
-.line.now { opacity: 1; }
+.line.now { opacity: 1; filter: none; transform: none; }
+:root[data-tone="dark"] .line.now { text-shadow: 0 2px 30px rgb(0 0 0 / .28); }
 [data-lyrics="synced"] .line { cursor: pointer; }
-[data-lyrics="synced"] .line:not(.now):hover { opacity: .6; }
+
+/* 自分で送っているあいだ・マウスを乗せているあいだは、全部読めるようにする */
+.lyrics.browsing .line:not(.now) { filter: none; opacity: .55; }
+@media (hover: hover) {
+  [data-lyrics="synced"] .lyrics:hover .line:not(.now) { filter: none; opacity: .5; }
+  [data-lyrics="synced"] .lyrics:hover .line:not(.now):hover { opacity: .85; }
+}
+
+/* 間奏は3つの点。鳴っているあいだだけ脈打つ */
+.line.gap { display: flex; align-items: center; gap: .3em; height: 1.4em; padding: 0; margin: .36em 0; }
+.line.gap i { width: .32em; height: .32em; border-radius: 50%; background: currentColor; }
+.line.gap.now i { animation: beat 1.5s ease-in-out infinite; }
+.line.gap.now i:nth-child(2) { animation-delay: .22s; }
+.line.gap.now i:nth-child(3) { animation-delay: .44s; }
+@keyframes beat {
+  0%, 100% { transform: scale(.7); opacity: .35; }
+  50% { transform: scale(1.2); opacity: 1; }
+}
 
 /* 時刻のない歌詞は自分でスクロールして読む */
 [data-lyrics="plain"] .lyrics { overflow-y: auto; scrollbar-width: none; padding: 18vh 0; }
 [data-lyrics="plain"] .lyrics::-webkit-scrollbar { display: none; }
 [data-lyrics="plain"] .lyrics-inner { transform: none !important; }
 [data-lyrics="plain"] .line {
-  font-size: clamp(1rem, 1.3vw + 1.2vh, 2.2rem);
-  opacity: .85;
-  padding: .18em 0;
+  font-size: clamp(1.05rem, 1.3vw + 1.3vh, 2.3rem);
+  line-height: 1.6;
+  padding: .16em 0;
+  opacity: .9;
+  filter: none;
+  transform: none;
 }
-[data-lyrics="plain"] .line:empty { height: 1.2em; }
+[data-lyrics="plain"] .line:empty { height: 1.3em; }
 
 .lyrics-note {
   position: fixed;
@@ -207,7 +303,7 @@ body.playing .i-play { display: none; }
 .lyrics-note:empty { display: none; }
 
 /* ---------- 歌詞がない曲はジャケットを真ん中に大きく ---------- */
-[data-lyrics="none"] .stage { grid-template-columns: minmax(0, 1fr); --art: min(62vh, 78vw); }
+[data-lyrics="none"] .stage { grid-template-columns: minmax(0, 1fr); --art: min(60vh, 78vw); }
 [data-lyrics="none"] .lyrics { display: none; }
 [data-lyrics="none"] .side { justify-self: center; }
 
@@ -215,41 +311,47 @@ body.playing .i-play { display: none; }
 @media (max-aspect-ratio: 1/1) {
   [data-lyrics="synced"] .stage,
   [data-lyrics="plain"] .stage {
-    --art: min(28vh, 40vw);
+    --art: min(26vh, 38vw);
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
-    gap: clamp(12px, 3vh, 32px);
+    gap: clamp(8px, 2vh, 24px);
   }
   [data-lyrics="synced"] .side,
   [data-lyrics="plain"] .side {
     width: auto;
     display: grid;
     grid-template-columns: var(--art) minmax(0, 1fr);
-    column-gap: clamp(12px, 4vw, 28px);
-    align-content: end;
+    column-gap: clamp(14px, 4.5vw, 30px);
+    align-items: center;
   }
   [data-lyrics="synced"] .meta,
-  [data-lyrics="plain"] .meta { align-self: end; margin-top: 0; }
+  [data-lyrics="plain"] .meta { margin-top: 0; }
   [data-lyrics="synced"] .seek, [data-lyrics="synced"] .controls,
   [data-lyrics="plain"] .seek, [data-lyrics="plain"] .controls { grid-column: 1 / -1; }
-  [data-lyrics="synced"] .art,
-  [data-lyrics="plain"] .art { grid-row: 1; }
+  [data-lyrics="synced"] .controls,
+  [data-lyrics="plain"] .controls { margin-left: -9px; margin-right: -9px; }
+  [data-lyrics="synced"] .upnext,
+  [data-lyrics="plain"] .upnext { display: none; }
+  [data-lyrics="synced"] .lyrics {
+    -webkit-mask-image: linear-gradient(transparent, #000 12%, #000 80%, transparent);
+            mask-image: linear-gradient(transparent, #000 12%, #000 80%, transparent);
+  }
   [data-lyrics="plain"] .lyrics {
     padding: 0 0 8vh;
     -webkit-mask-image: linear-gradient(transparent, #000 4%, #000 86%, transparent);
             mask-image: linear-gradient(transparent, #000 4%, #000 86%, transparent);
   }
+  .line { font-size: clamp(1.35rem, 5.6vw, 2.4rem); }
+  [data-lyrics="plain"] .line { font-size: clamp(1.05rem, 4.2vw, 1.6rem); }
 }
 
 /* ---------- 横に細長く置いたとき：ジャケットと今の行だけ ---------- */
 @media (max-height: 320px) {
   .stage { --pad: 12px; --art: calc(100dvh - 30px); gap: 20px; }
-  .meta, .seek, .controls, .lyrics-note { display: none; }
-  .line { padding: .15em 0; }
-}
-
-/* ---------- 細長いウィンドウのときだけ出す、下端の再生位置 ---------- */
-@media (max-height: 320px) {
+  .meta, .seek, .controls, .upnext, .lyrics-note { display: none; }
+  .art { transform: none; }
+  .line { padding: .12em 0; }
+  .line.gap { margin: .12em 0; }
   body[data-view="player"] .bar { display: block; }
 }
 .bar {
@@ -260,106 +362,130 @@ body.playing .i-play { display: none; }
 }
 .bar-fill { height: 100%; background: currentColor; transform-origin: left; transform: scaleX(0); }
 
-/* ---------- メニュー（探す / ライブラリ / 次に再生 / 端末と音量） ---------- */
+/* ---------- メニュー：右から出る引き出し。スマホでは下から ---------- */
 .sheet {
   position: fixed;
   inset: 0;
   z-index: 10;
-  display: grid;
-  justify-items: center;
-  align-items: start;
-  padding: max(env(safe-area-inset-top), clamp(12px, 7vh, 72px)) 12px max(env(safe-area-inset-bottom), 12px);
-  background: rgb(0 0 0 / .5);
+  display: flex;
+  justify-content: flex-end;
+  background: rgb(0 0 0 / .4);
 }
 .sheet-panel {
   display: flex;
   flex-direction: column;
-  width: min(100%, 36rem);
-  max-height: 100%;
-  border-radius: 10px;
-  background: var(--fg);
-  color: var(--bg);
-  overflow: hidden;
+  width: min(100%, 27rem);
+  height: 100%;
+  padding-top: env(safe-area-inset-top);
+  background: color-mix(in srgb, var(--bg) 86%, #000);
+  box-shadow: -30px 0 80px rgb(0 0 0 / .4);
+  animation: slide-in .32s var(--ease);
 }
+:root[data-tone="light"] .sheet-panel { background: color-mix(in srgb, var(--bg) 94%, #fff); }
+/* 動かすのは位置だけ。透明から始めると、描画が止まった環境でメニューが見えなくなる */
+@keyframes slide-in { from { transform: translateX(48px); } }
+@keyframes slide-up { from { transform: translateY(72px); } }
+
+@media (max-width: 640px) {
+  .sheet { align-items: flex-end; }
+  .sheet-panel {
+    width: 100%;
+    height: min(86dvh, 100%);
+    padding-top: 0;
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -20px 60px rgb(0 0 0 / .4);
+    animation-name: slide-up;
+  }
+}
+
 .tabs {
   display: flex;
   gap: 2px;
-  padding: 8px 8px 0;
+  padding: 12px 10px 4px;
   overflow-x: auto;
   scrollbar-width: none;
   flex: none;
 }
+.tabs::-webkit-scrollbar { display: none; }
 .tabs button {
-  padding: .55em .8em;
-  border-radius: 6px;
-  font-size: .9rem;
+  padding: .55em .85em;
+  border-radius: 999px;
+  font-size: .88rem;
   font-weight: 700;
   white-space: nowrap;
-  opacity: .55;
+  opacity: .5;
+  transition: opacity .15s ease, background-color .15s ease;
 }
 .tabs button:hover { opacity: .85; }
-.tabs button[aria-selected="true"] { opacity: 1; background: color-mix(in srgb, currentColor 12%, transparent); }
+.tabs button[aria-selected="true"] { opacity: 1; background: color-mix(in srgb, currentColor 14%, transparent); }
 .tabs .close { margin-left: auto; font-weight: 500; }
 
-.sheet-body { padding: 8px; overflow-y: auto; overscroll-behavior: contain; }
-.sheet-top { display: flex; align-items: center; gap: 8px; padding: 4px 4px 8px; flex-wrap: wrap; }
+.sheet-body {
+  flex: 1;
+  padding: 8px 10px max(16px, env(safe-area-inset-bottom));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, currentColor 25%, transparent) transparent;
+}
+.sheet-top { display: flex; align-items: center; gap: 8px; padding: 4px 4px 10px; flex-wrap: wrap; }
 .sheet-top b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sheet-top input[type="search"] {
   flex: 1;
   min-width: 0;
-  padding: .6em .8em;
+  padding: .7em 1em;
   font: inherit;
   font-size: 1rem; /* 16px 未満だと iPhone が勝手に拡大する */
   color: inherit;
   background: color-mix(in srgb, currentColor 10%, transparent);
   border: 0;
-  border-radius: 6px;
+  border-radius: 999px;
+  outline-offset: 0;
 }
-.sheet-top input::placeholder { color: inherit; opacity: .5; }
-.sheet-heading { padding: 12px 6px 4px; font-size: .78rem; font-weight: 700; opacity: .6; }
-.sheet-note { padding: 10px 6px; font-size: .85rem; line-height: 1.7; opacity: .7; }
+.sheet-top input::placeholder { color: inherit; opacity: .45; }
+.sheet-heading { padding: 16px 6px 6px; font-size: .76rem; font-weight: 700; opacity: .55; }
+.sheet-note { padding: 12px 6px; font-size: .86rem; line-height: 1.75; opacity: .7; }
 
 .rows { list-style: none; padding: 0; }
 .row {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 52px;
+  min-height: 56px;
   padding: 6px;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
+  transition: background-color .12s ease;
 }
 .row.static { cursor: default; }
-.row:not(.static):hover, .row:focus-visible { background: color-mix(in srgb, currentColor 12%, transparent); outline: 0; }
-.row img, .row .noimg { width: 44px; height: 44px; border-radius: 3px; object-fit: cover; flex: none; }
-.row .noimg { background: color-mix(in srgb, currentColor 18%, transparent); }
+.row:not(.static):hover, .row:focus-visible { background: color-mix(in srgb, currentColor 10%, transparent); outline: 0; }
+.row img, .row .noimg { width: 44px; height: 44px; border-radius: 4px; object-fit: cover; flex: none; }
+.row .noimg { background: color-mix(in srgb, currentColor 16%, transparent); }
 .row .names { flex: 1; min-width: 0; }
 .row .names b, .row .names span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.row .names b { font-weight: 700; }
-.row .names span { font-size: .82rem; opacity: .65; }
+.row .names b { font-weight: 700; font-size: .95rem; }
+.row .names span { margin-top: 1px; font-size: .8rem; opacity: .6; }
 
 .chip {
   flex: none;
-  padding: .4em .8em;
-  font-size: .8rem;
-  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  padding: .42em .9em;
+  font-size: .78rem;
+  font-weight: 700;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
   border-radius: 999px;
   white-space: nowrap;
+  transition: background-color .12s ease;
 }
-.chip:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
-.chip.solid { background: var(--bg); color: var(--fg); border-color: transparent; }
+.chip:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
+.chip.solid, .chip.solid:hover { background: var(--fg); color: var(--bg); border-color: transparent; }
+.row .chip { opacity: .75; }
 .sheet-body > div > .chip, .sheet-body > .chip { margin: 8px 6px; }
 
 .volume { display: flex; align-items: center; gap: 12px; padding: 4px 6px 8px; }
-.volume input { flex: 1; accent-color: var(--bg); }
+.volume input { flex: 1; accent-color: var(--fg); }
 .volume span { min-width: 2.2em; text-align: right; font-variant-numeric: tabular-nums; font-size: .85rem; }
 
-/* ---------- お気に入り ---------- */
-.i-heart { fill: none !important; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
-#like[aria-pressed="true"] { opacity: 1; }
-#like[aria-pressed="true"] .i-heart { fill: currentColor !important; }
-
-/* ---------- 背景：ジャケットを小さく縮めてから引き伸ばした、ぼけた絵（JS が html に貼る） ---------- */
+/* ---------- 背景をゆっくり流す（マウスのある端末だけ。スマホは電池を使うので止める） ---------- */
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
   html { background-size: 150% 150%; animation: drift 70s ease-in-out infinite alternate; }
 }
@@ -415,7 +541,7 @@ body.playing .i-play { display: none; }
 .primary {
   margin-top: .6rem;
   padding: .8em 1.6em;
-  border-radius: 6px;
+  border-radius: 999px;
   background: var(--fg);
   color: var(--bg);
   font-weight: 700;
@@ -434,22 +560,25 @@ body.playing .i-play { display: none; }
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 32px;
-  transform: translateX(-50%);
+  bottom: max(32px, env(safe-area-inset-bottom));
+  z-index: 20;
+  transform: translate(-50%, 8px);
   max-width: min(90vw, 34rem);
-  padding: .6em 1.1em;
-  border-radius: 6px;
+  padding: .65em 1.2em;
+  border-radius: 14px;
   background: var(--fg);
   color: var(--bg);
-  font-size: .9rem;
+  font-size: .88rem;
+  font-weight: 700;
+  box-shadow: 0 12px 30px -10px rgb(0 0 0 / .5);
   opacity: 0;
   pointer-events: none;
-  transition: opacity .3s ease;
+  transition: opacity .3s ease, transform .3s var(--ease);
 }
-.toast.show { opacity: 1; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 @media (prefers-reduced-motion: reduce) {
-  * { transition-duration: 0s !important; }
+  *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
 }
 
 /* ホーム画面から開いた iPhone では dvh がステータスバーのぶん短くなる */
