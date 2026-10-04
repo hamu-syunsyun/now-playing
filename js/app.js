@@ -8,7 +8,7 @@ const source = await import(demo ? './demo.js' : './spotify.js');
 const $ = (id) => document.getElementById(id);
 const body = document.body;
 const el = {
-  art: $('art'), title: $('title'), artist: $('artist'), backdrop: $('backdrop'),
+  art: $('art'), title: $('title'), artist: $('artist'),
   lyrics: $('lyrics'), inner: $('lyricsInner'), note: $('lyricsNote'),
   seek: $('seek'), seekFill: $('seekFill'), seekKnob: $('seekKnob'),
   fill: $('barFill'), now: $('timeNow'), all: $('timeAll'),
@@ -54,10 +54,11 @@ function toast(message) {
   toastTimer = setTimeout(() => el.toast.classList.remove('show'), 4000);
 }
 
-function setColors({ bg, fg, tone }) {
-  body.style.setProperty('--bg', bg);
-  body.style.setProperty('--fg', fg);
-  body.dataset.tone = tone;
+function setColors({ bg, fg, backdrop }) {
+  const root = document.documentElement;
+  root.style.setProperty('--bg', bg);
+  root.style.setProperty('--fg', fg);
+  root.style.backgroundImage = backdrop ? `url("${backdrop}")` : 'none';
   document.querySelector('meta[name="theme-color"]').content = bg;
 }
 
@@ -100,16 +101,12 @@ function showTrack(t) {
 
   el.art.classList.remove('ready');
   if (t.art) {
-    el.art.onload = () => {
-      el.art.classList.add('ready');
-      if (track === t) el.backdrop.style.backgroundImage = `url("${t.art}")`;
-    };
+    el.art.onload = () => el.art.classList.add('ready');
     el.art.src = t.art;
     el.art.alt = `${t.title} のジャケット`;
     paletteFrom(t.art).then((p) => { if (track === t) setColors(p); });
   } else {
     el.art.removeAttribute('src');
-    el.backdrop.style.backgroundImage = '';
     setColors(DEFAULT);
   }
 

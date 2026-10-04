@@ -11,13 +11,18 @@
 
 html, body { height: 100%; }
 
+/* 背景は html に塗る。ノッチやホームバーの裏まで確実に届くのはここだけ */
+html {
+  background: var(--bg) center / cover no-repeat;
+  transition: background-color 1.2s ease;
+}
+
 body {
-  background: var(--bg);
   color: var(--fg);
   font-family: "Zen Kaku Gothic New", "Yu Gothic UI", "Hiragino Sans", sans-serif;
   font-weight: 500;
   overflow: hidden;
-  transition: background-color 1.2s ease, color 1.2s ease;
+  transition: color 1.2s ease;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -210,7 +215,7 @@ body.playing .i-play { display: none; }
 @media (max-aspect-ratio: 1/1) {
   [data-lyrics="synced"] .stage,
   [data-lyrics="plain"] .stage {
-    --art: min(26vh, 34vw);
+    --art: min(28vh, 40vw);
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
     gap: clamp(12px, 3vh, 32px);
@@ -229,7 +234,11 @@ body.playing .i-play { display: none; }
   [data-lyrics="plain"] .seek, [data-lyrics="plain"] .controls { grid-column: 1 / -1; }
   [data-lyrics="synced"] .art,
   [data-lyrics="plain"] .art { grid-row: 1; }
-  [data-lyrics="plain"] .lyrics { padding: 6vh 0; }
+  [data-lyrics="plain"] .lyrics {
+    padding: 0 0 8vh;
+    -webkit-mask-image: linear-gradient(transparent, #000 4%, #000 86%, transparent);
+            mask-image: linear-gradient(transparent, #000 4%, #000 86%, transparent);
+  }
 }
 
 /* ---------- 横に細長く置いたとき：ジャケットと今の行だけ ---------- */
@@ -350,25 +359,14 @@ body.playing .i-play { display: none; }
 #like[aria-pressed="true"] { opacity: 1; }
 #like[aria-pressed="true"] .i-heart { fill: currentColor !important; }
 
-/* ---------- 背景：ジャケットを大きくぼかして、ゆっくり動かす ---------- */
-.backdrop {
-  position: fixed;
-  inset: -25%;
-  z-index: -1;
-  background: center / cover no-repeat;
-  filter: blur(90px) saturate(1.5) brightness(.6);
-  opacity: 0;
-  transition: opacity 1.2s ease, background-image 1.2s ease;
-  animation: drift 80s ease-in-out infinite alternate;
-  pointer-events: none;
+/* ---------- 背景：ジャケットを小さく縮めてから引き伸ばした、ぼけた絵（JS が html に貼る） ---------- */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  html { background-size: 150% 150%; animation: drift 70s ease-in-out infinite alternate; }
 }
-body[data-view="player"] .backdrop { opacity: .8; }
-body[data-view="player"][data-tone="light"] .backdrop { filter: blur(90px) saturate(1.2) brightness(1.2); opacity: .45; }
 @keyframes drift {
-  from { transform: translate(-4%, -3%) rotate(0deg) scale(1); }
-  to { transform: translate(4%, 3%) rotate(10deg) scale(1.2); }
+  from { background-position: 0% 0%; }
+  to { background-position: 100% 100%; }
 }
-@media (prefers-reduced-motion: reduce) { .backdrop { animation: none; } }
 
 /* ---------- 何も再生していないとき ---------- */
 .empty {
@@ -452,4 +450,9 @@ body[data-view="player"][data-tone="light"] .backdrop { filter: blur(90px) satur
 
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 0s !important; }
+}
+
+/* ホーム画面から開いた iPhone では dvh がステータスバーのぶん短くなる */
+@media (display-mode: standalone) {
+  .stage, .empty, .setup { height: 100vh; }
 }

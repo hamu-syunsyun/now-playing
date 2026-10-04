@@ -17,7 +17,33 @@ function rgbToHsl(r, g, b) {
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const hsl = (h, s, l) => `hsl(${h.toFixed(0)} ${(s * 100).toFixed(0)}% ${(l * 100).toFixed(0)}%)`;
 
-export const DEFAULT = { bg: '#17191c', fg: '#f1efe9', tone: 'dark' };
+export const DEFAULT = { bg: '#17191c', fg: '#f1efe9', backdrop: '' };
+
+function canvasOf(size) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  return c;
+}
+
+// 背景用のぼけた絵。ジャケットを 8px まで縮めてから引き伸ばし、地の色を重ねて文字が読める明るさに寄せる。
+// CSS の blur を使わないのは、iPhone で画面の端まで届かないことがあるため。
+function backdropFrom(img, bg, light) {
+  const small = canvasOf(8);
+  small.getContext('2d').drawImage(img, 0, 0, 8, 8);
+  const out = canvasOf(160);
+  const ctx = out.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(small, 0, 0, 160, 160);
+  if (!light) {
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, 160, 160);
+  }
+  ctx.globalAlpha = light ? 0.6 : 0.4;
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, 160, 160);
+  return out.toDataURL('image/jpeg', 0.85);
+}
 
 export async function paletteFrom(url) {
   try {
@@ -46,9 +72,10 @@ export async function paletteFrom(url) {
     // 背景: いちばん面積の広い色
     const [h, s, l] = colors.reduce((a, b) => (b.n > a.n ? b : a)).hsl;
 
-    if (l > 0.72) {
-      // 白っぽいジャケットは明るい画面のままにする
-      return { bg: hsl(h, Math.min(s, 0.5), clamp(l, 0.82, 0.92)), fg: hsl(h, Math.min(s, 0.4), 0.13), tone: 'light' };
+    // 白やごく淡い色のジャケットだけ明るい画面にする。色のはっきりした明るめの地は、暗く沈めたほうが映える
+    if (l > 0.86 || (l > 0.72 && s < 0.25)) {
+      const bg = hsl(h, Math.min(s, 0.5), clamp(l, 0.82, 0.92));
+      return { bg, fg: hsl(h, Math.min(s, 0.4), 0.13), backdrop: backdropFrom(img, bg, true) };
     }
 
     // 文字: ジャケットの中でいちばん目立つ鮮やかな色を、読める明るさまで持ち上げる
@@ -59,7 +86,8 @@ export async function paletteFrom(url) {
       ? hsl(accent.hsl[0], Math.min(accent.hsl[1], 0.5), 0.9)
       : hsl(h, 0.1, 0.93);
 
-    return { bg: hsl(h, Math.min(s, 0.6), clamp(l, 0.12, 0.26)), fg, tone: 'dark' };
+    const bg = hsl(h, Math.min(s, 0.6), clamp(l, 0.12, 0.26));
+    return { bg, fg, backdrop: backdropFrom(img, bg, false) };
   } catch {
     return DEFAULT;
   }
