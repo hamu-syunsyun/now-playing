@@ -258,6 +258,18 @@ export function createPanel(deps) {
     },
   };
 
+  VIEWS.lyrics = () => {
+    if (!deps.state().hasSynced) {
+      body.append(note('この曲には、歌に合わせて進む歌詞がありません。合わせられるのは、行ごとに時刻がついた歌詞だけです。'));
+      return;
+    }
+    body.append(
+      note('歌詞は LRCLIB という有志のデータベースのもので、Spotify の音源と数百ミリ秒〜数秒ずれていることがあります。ずれている曲は、歌詞を早めるか遅らせて合わせられます。合わせた値は曲ごとに覚えます。'),
+      h('button', { className: 'chip solid', textContent: 'タイミングを合わせる', onclick: () => { close(); deps.tune(); } }),
+      note('パソコンでは [ で遅らせ、] で早められます。'),
+    );
+  };
+
   for (const b of tabs) b.addEventListener('click', () => show(b.dataset.tab));
   document.getElementById('closeSheet').addEventListener('click', close);
   sheet.addEventListener('click', (e) => { if (e.target === sheet) close(); });

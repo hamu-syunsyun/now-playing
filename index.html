@@ -15,17 +15,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=20261004205327">
+  <link rel="stylesheet" href="css/style.css?v=20261004222602">
   <!-- 画面のプログラムは全部この版番号つきで読む。古いものと新しいものが混ざらないようにするため -->
   <script type="importmap">
   {
     "imports": {
-      "./js/auth.js": "./js/auth.js?v=20261004205327",
-      "./js/color.js": "./js/color.js?v=20261004205327",
-      "./js/panel.js": "./js/panel.js?v=20261004205327",
-      "./js/spotify.js": "./js/spotify.js?v=20261004205327",
-      "./js/lyrics.js": "./js/lyrics.js?v=20261004205327",
-      "./js/demo.js": "./js/demo.js?v=20261004205327"
+      "./js/auth.js": "./js/auth.js?v=20261004222602",
+      "./js/color.js": "./js/color.js?v=20261004222602",
+      "./js/panel.js": "./js/panel.js?v=20261004222602",
+      "./js/spotify.js": "./js/spotify.js?v=20261004222602",
+      "./js/lyrics.js": "./js/lyrics.js?v=20261004222602",
+      "./js/demo.js": "./js/demo.js?v=20261004222602"
     }
   }
   </script>
@@ -125,14 +125,22 @@
         <button type="button" data-tab="library">ライブラリ</button>
         <button type="button" data-tab="queue">次に再生</button>
         <button type="button" data-tab="device">端末と音量</button>
+        <button type="button" data-tab="lyrics">歌詞</button>
         <button type="button" id="closeSheet" class="close">閉じる</button>
       </nav>
       <div class="sheet-body" id="sheetBody"></div>
     </div>
   </div>
 
+  <div class="tune" id="tune" hidden>
+    <button type="button" id="tuneLate">遅らせる</button>
+    <span id="tuneValue"></span>
+    <button type="button" id="tuneEarly">早める</button>
+    <button type="button" id="tuneReset">戻す</button>
+    <button type="button" id="tuneDone">完了</button>
+  </div>
   <p class="toast" id="toast" role="status"></p>
 
-  <script type="module" src="js/app.js?v=20261004205327"></script>
+  <script type="module" src="js/app.js?v=20261004222602"></script>
 </body>
 </html>

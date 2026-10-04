@@ -583,6 +583,37 @@ body.playing .i-play { display: none; }
   color: #ffe3de;
 }
 
+/* ---------- 歌詞のタイミング合わせ ---------- */
+.tune {
+  position: fixed;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 15;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100vw - 16px);
+  padding: 6px;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: .8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 12px 30px -10px rgb(0 0 0 / .5);
+}
+.tune span { min-width: 9.5em; text-align: center; font-variant-numeric: tabular-nums; }
+.tune button { padding: .5em .9em; border-radius: 999px; font-weight: 700; }
+.tune button:hover { background: color-mix(in srgb, currentColor 14%, transparent); }
+#tuneLate, #tuneEarly { background: color-mix(in srgb, currentColor 14%, transparent); }
+#tuneReset, #tuneDone { font-weight: 500; opacity: .75; }
+@media (max-width: 480px) {
+  .tune { font-size: .74rem; gap: 2px; }
+  .tune span { min-width: 8.5em; }
+  .tune button { padding: .5em .65em; }
+}
+
 /* ---------- 一時的なお知らせ ---------- */
 .toast {
   position: fixed;

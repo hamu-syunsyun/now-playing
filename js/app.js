@@ -14,9 +14,13 @@ const el = {
   seek: $('seek'), seekFill: $('seekFill'), seekKnob: $('seekKnob'),
   fill: $('barFill'), now: $('timeNow'), all: $('timeAll'),
   like: $('like'), upNext: $('upNext'), toast: $('toast'),
+  tune: $('tune'), tuneValue: $('tuneValue'),
 };
 
 const POLL_MS = 2000;
+const LEAD_MS = 150;     // 歌い出しより少し早く行を切り替える。ぴったりだと遅れて見える
+const TUNE_STEP_MS = 250;
+const OFFSETS_KEY = 'lyric_offsets';
 const ACTIVE_AT = 0.42; // いまの行を歌詞欄の上から何割の位置に置くか
 
 let track = null;
@@ -36,6 +40,7 @@ let shuffle = false;
 let repeat = 'off';
 let device = null;
 let liked = false;
+let lyricOffset = 0;                 // この曲の歌詞を何ミリ秒早めるか（負なら遅らせる）。曲ごとに覚える
 let showing = 0;                     // 曲の切り替えの通し番号。古い切り替えの結果を捨てるのに使う
 let shown = false;                   // 再生画面に曲を出し終えたか
 
@@ -124,6 +129,8 @@ const LYRICS_WAIT_MS = 1200; // 歌詞がこれより遅ければ、先に曲だ
 async function showTrack(t) {
   track = t;
   synced = null; // 前の曲の歌詞を新しい曲の時間で光らせない
+  lyricOffset = loadOffsets()[t.id] || 0;
+  el.tune.hidden = true;
   const my = ++showing;
   document.title = t.artist ? `${t.title} – ${t.artist}` : t.title;
 
@@ -221,7 +228,7 @@ function fillLyrics(l) {
     } else {
       p.textContent = text;
     }
-    if (synced) p.addEventListener('click', () => seekTo(synced[i].t));
+    if (synced) p.addEventListener('click', () => seekTo(Math.max(0, synced[i].t - lyricOffset)));
     el.inner.append(p);
     lineEls.push(p);
   }
@@ -285,7 +292,7 @@ function frame() {
     el.now.textContent = fmt(dragRatio === null ? pos : dragRatio * track.duration);
 
     if (synced) {
-      const i = currentLine(pos);
+      const i = currentLine(pos + LEAD_MS + lyricOffset);
       if (i !== activeIndex) {
         markLines(i);
         activeIndex = i;
@@ -360,9 +367,15 @@ function apply(pb, at) {
     return;
   }
   if (shown) body.dataset.view = 'player'; // 最初の1曲は、絵と色がそろってから showTrack が出す
-  if (pb.track.id !== track?.id) showTrack(pb.track);
+  const changed = pb.track.id !== track?.id;
+  if (changed) showTrack(pb.track);
+  // Spotify が返す再生位置は毎回数百ミリ秒ぶれる。そのまま採用すると歌詞が前後に揺れるので、
+  // 同じ曲を再生し続けているあいだは、手元の時計で進めた位置に少しずつ寄せる。大きく違えばシークとみなす
+  const expected = anchor.progress + (at - anchor.at);
+  const drift = pb.progress - expected;
+  const steady = !changed && isPlaying && pb.isPlaying && Math.abs(drift) < 1500;
   isPlaying = pb.isPlaying;
-  anchor = { progress: pb.progress, at };
+  anchor = { progress: steady ? expected + drift * 0.3 : pb.progress, at };
   shuffle = pb.shuffle;
   repeat = pb.repeat;
   device = pb.device;
@@ -426,6 +439,33 @@ async function toggleLike() {
   }
 }
 
+// ---------- 歌詞のタイミング合わせ ----------
+
+function loadOffsets() {
+  try { return JSON.parse(localStorage.getItem(OFFSETS_KEY)) || {}; } catch { return {}; }
+}
+
+function showTune() {
+  if (!track || !synced) { toast('この曲には、歌に合わせて進む歌詞がありません。'); return; }
+  const sec = (Math.abs(lyricOffset) / 1000).toFixed(2);
+  el.tuneValue.textContent = lyricOffset > 0 ? `${sec}秒 早めています` : lyricOffset < 0 ? `${sec}秒 遅らせています` : 'ずれの調整なし';
+  el.tune.hidden = false;
+}
+
+function tuneBy(step) {
+  if (!track || !synced) { showTune(); return; }
+  lyricOffset = step === 0 ? 0 : Math.min(15000, Math.max(-15000, lyricOffset + step));
+  const all = loadOffsets();
+  if (lyricOffset) all[track.id] = lyricOffset; else delete all[track.id];
+  try { localStorage.setItem(OFFSETS_KEY, JSON.stringify(all)); } catch { /* 保存できなくても今の曲では効く */ }
+  showTune();
+}
+
+$('tuneEarly').addEventListener('click', () => tuneBy(TUNE_STEP_MS));
+$('tuneLate').addEventListener('click', () => tuneBy(-TUNE_STEP_MS));
+$('tuneReset').addEventListener('click', () => tuneBy(0));
+$('tuneDone').addEventListener('click', () => { el.tune.hidden = true; });
+
 function toggleFullscreen() {
   if (document.fullscreenElement) document.exitFullscreen();
   else document.documentElement.requestFullscreen().catch(() => {});
@@ -435,7 +475,8 @@ const panel = createPanel({
   source,
   toast,
   messageFor,
-  state: () => ({ shuffle, repeat, device }),
+  state: () => ({ shuffle, repeat, device, hasSynced: !!synced }),
+  tune: showTune,
   changed: () => { epoch++; kick(500); refreshUpNext(1500); },
   relogin: () => auth.login(),
 });
@@ -485,6 +526,9 @@ addEventListener('keydown', (e) => {
   if (body.dataset.view !== 'player') return;
   if (e.key === '/' || ((e.ctrlKey || e.metaKey) && e.code === 'KeyK')) { e.preventDefault(); panel.open('search'); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
+  // [ と ] は日本語キーボードと英語キーボードで位置（code）が違うので、文字で見る
+  if (e.key === ']') { tuneBy(TUNE_STEP_MS); return; }
+  if (e.key === '[') { tuneBy(-TUNE_STEP_MS); return; }
   switch (e.code) {
     case 'Space': e.preventDefault(); toggle(); break;
     case 'ArrowRight': act(source.next); break;
