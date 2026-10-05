@@ -25,6 +25,7 @@ const OFFSETS_KEY = 'lyric_offsets';
 const SCALES = [0.85, 1, 1.2, 1.45]; // 歌詞の文字の大きさ（小・標準・大・特大）
 const SCALE_KEY = 'lyric_scale';
 const portrait = matchMedia('(max-aspect-ratio: 1/1)');
+const touchOnly = matchMedia('(hover: none)');
 // いまの行を歌詞欄の上から何割の位置に置くか。縦長では上に寄せて、先の歌詞を多く見せる
 const activeAt = () => (portrait.matches ? 0.3 : 0.42);
 
@@ -114,6 +115,17 @@ $('connect').addEventListener('click', () => {
 
 // 画面の中身を入れ替える。対応しているブラウザでは、前の画面から次の画面へ溶けるように切り替わる
 function swap(change) {
+  // スマホでは View Transition を使わない。画面全体を撮って重ねる処理が重く、曲が変わるたびに引っかかる。
+  // 代わりに画面を一瞬薄くして、そのあいだに中身を入れ替える
+  if (touchOnly.matches) {
+    const stage = $('stage');
+    stage.classList.add('swapping');
+    setTimeout(() => {
+      change();
+      requestAnimationFrame(() => stage.classList.remove('swapping'));
+    }, 200);
+    return;
+  }
   if (!document.startViewTransition || document.hidden) { change(); return; }
   const vt = document.startViewTransition(change);
   // 切り替えの途中で次の切り替えが来ると、前のものは打ち切られる。それは失敗ではない
@@ -302,7 +314,7 @@ function markLines(i) {
   for (let j = i - 6; j <= i + 6; j++) {
     const p = lineEls[j];
     if (!p) continue;
-    p.style.setProperty('--d', j < i ? Math.min(6, (i - j) * 3) : j - i);
+    p.style.setProperty('--d', Math.abs(j - i));
     marked.push(p);
   }
   lineEls[i]?.classList.add('now');

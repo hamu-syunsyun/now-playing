@@ -656,14 +656,17 @@ body.playing .i-play { display: none; }
   *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
 }
 
-/* ---------- スマホでは重い描画をやめる ----------
-   行のぼかし、画面全体の粒子、歌詞欄のマスクは、どれも動くたびに描き直しが要る。
-   iPhone ではこれがコマ落ちの原因になるので、濃さと大きさの変化だけで奥行きを出す。 */
+/* ---------- スマホ向けの軽量化 ----------
+   見た目はパソコンと同じ（ぼかし・上下のフェードあり）。変えるのは見えにくいところだけ：
+   ぼかしの強さを0.5秒かけて変えるのをやめて一度で切り替え、画面全体の粒子は出さない。 */
 @media (hover: none) {
-  .line { color: inherit; text-shadow: none; transition: opacity .4s ease, transform .5s var(--ease); }
+  .line { transition: opacity .4s ease, transform .5s var(--ease); }
   body::after { display: none; }
-  [data-lyrics="synced"] .lyrics { -webkit-mask-image: none; mask-image: none; }
 }
+
+/* スマホで曲が変わるときは、画面をいったん薄くしてから中身を入れ替える */
+.stage { transition: opacity .2s ease; }
+.stage.swapping { opacity: 0; }
 
 /* ホーム画面から開いた iPhone は、画面の高さをステータスバーのぶん短く報告することがある */
 @media (display-mode: standalone) {
