@@ -205,6 +205,36 @@ function refreshUpNext(delay) {
 const GAP_MS = 5000; // 歌い出しまでこれ以上あくなら、前奏として点を出す
 
 // 歌詞のあり・なしで配置が変わるときは、ジャケットが飛ばないように動かして切り替える
+// 日本語を文節の切れ目で折り返すための下ごしらえ。
+// Chrome は CSS（word-break: auto-phrase）だけでできるが、iPhone の Safari はできないので、
+// 単語に分けてから「ひらがなで始まる語（助詞や送りがな）は前の語にくっつける」という近似でまとまりを作る。
+const needsPhrases = !CSS.supports('word-break', 'auto-phrase') && !!Intl.Segmenter;
+const segmenter = needsPhrases ? new Intl.Segmenter('ja', { granularity: 'word' }) : null;
+const MAX_PHRASE = 8; // ひらがなが長く続く歌詞で、まとまりが1行より長くならないようにする
+const STICKS_TO_PREVIOUS = /^[\u3041-\u309f\u30fc、。，．！？!?,.」』）)]/;
+
+function phrases(text) {
+  const out = [];
+  for (const { segment } of segmenter.segment(text)) {
+    const last = out[out.length - 1];
+    if (/^\s+$/.test(segment)) out.push(segment);
+    else if (last && last.length < MAX_PHRASE && !/^\s+$/.test(last) && STICKS_TO_PREVIOUS.test(segment)) out[out.length - 1] = last + segment;
+    else out.push(segment);
+  }
+  return out;
+}
+
+function setLineText(p, text) {
+  if (!needsPhrases) { p.textContent = text; return; }
+  p.replaceChildren(...phrases(text).map((part) => {
+    if (/^\s+$/.test(part)) return part;
+    const span = document.createElement('span');
+    span.className = 'w';
+    span.textContent = part;
+    return span;
+  }));
+}
+
 const kindOf = (l) => (l?.synced?.length ? 'synced' : l?.plain ? 'plain' : 'none');
 
 function renderLyrics(l) {
@@ -232,7 +262,7 @@ function fillLyrics(l) {
       p.classList.add('gap'); // 間奏
       p.append(...[0, 1, 2].map(() => document.createElement('i')));
     } else {
-      p.textContent = text;
+      setLineText(p, text);
     }
     if (synced) p.addEventListener('click', () => seekTo(Math.max(0, synced[i].t - lyricOffset)));
     el.inner.append(p);

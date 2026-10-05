@@ -274,24 +274,26 @@ body.playing .i-play { display: none; }
   text-wrap: balance;
   transform-origin: left center;
   transform: scale(.9);
-  opacity: max(.12, calc(.6 - var(--d, 6) * .085));
-  filter: blur(calc(min(var(--d, 6), 6) * .5px));
-  transition: opacity .5s ease, filter .5s ease, transform .5s var(--ease);
+  opacity: max(.14, calc(.7 - var(--d, 6) * .095));
+  /* ぼかしは文字を透明にして、にじんだ影だけを見せる。filter: blur は iPhone で行のまわりに黒い線が出る */
+  color: transparent;
+  text-shadow: 0 0 calc(min(var(--d, 6), 6) * .55px) var(--fg);
+  transition: opacity .5s ease, text-shadow .5s ease, color .5s ease, transform .5s var(--ease);
 }
-.line.now { opacity: 1; filter: none; transform: none; }
-:root[data-tone="dark"] .line.now { text-shadow: 0 2px 30px rgb(0 0 0 / .28); }
+.line.now { opacity: 1; color: inherit; text-shadow: none; transform: none; }
+.line .w { display: inline-block; max-width: 100%; }
 [data-lyrics="synced"] .line { cursor: pointer; }
 
 /* 自分で送っているあいだ・マウスを乗せているあいだは、全部読めるようにする */
-.lyrics.browsing .line:not(.now) { filter: none; opacity: .55; }
+.lyrics.browsing .line:not(.now) { color: inherit; text-shadow: none; opacity: .55; }
 @media (hover: hover) {
-  [data-lyrics="synced"] .lyrics:hover .line:not(.now) { filter: none; opacity: .5; }
+  [data-lyrics="synced"] .lyrics:hover .line:not(.now) { color: inherit; text-shadow: none; opacity: .5; }
   [data-lyrics="synced"] .lyrics:hover .line:not(.now):hover { opacity: .85; }
 }
 
 /* 間奏は3つの点。鳴っているあいだだけ脈打つ */
 .line.gap { display: flex; align-items: center; gap: .3em; height: 1.4em; padding: 0; margin: .36em 0; }
-.line.gap i { width: .32em; height: .32em; border-radius: 50%; background: currentColor; }
+.line.gap i { width: .32em; height: .32em; border-radius: 50%; background: var(--fg); }
 .line.gap.now i { animation: beat 1.5s ease-in-out infinite; }
 .line.gap.now i:nth-child(2) { animation-delay: .22s; }
 .line.gap.now i:nth-child(3) { animation-delay: .44s; }
@@ -309,7 +311,8 @@ body.playing .i-play { display: none; }
   line-height: 1.6;
   padding: .16em 0;
   opacity: .9;
-  filter: none;
+  color: inherit;
+  text-shadow: none;
   transform: none;
 }
 [data-lyrics="plain"] .line:empty { height: 1.3em; }
