@@ -40,6 +40,9 @@ let browse = 0;                      // 歌詞を自分で送っているあい�
 let browseTimer = 0;
 let pollTimer = 0;
 let endKicked = false;
+let paintedRatio = -1;               // 最後に画面へ書いたシークバーの位置・時刻・書いた時刻
+let paintedAt = 0;
+let paintedTime = '';
 let dragRatio = null;                // シークバーをつまんでいるあいだの位置（0〜1）
 let shuffle = false;
 let repeat = 'off';
@@ -299,7 +302,7 @@ function markLines(i) {
   for (let j = i - 6; j <= i + 6; j++) {
     const p = lineEls[j];
     if (!p) continue;
-    p.style.setProperty('--d', Math.abs(j - i));
+    p.style.setProperty('--d', j < i ? Math.min(6, (i - j) * 3) : j - i);
     marked.push(p);
   }
   lineEls[i]?.classList.add('now');
@@ -322,10 +325,17 @@ function browseBy(dy) {
 function frame() {
   if (track) {
     const pos = position();
+    // シークバーと時刻は、見た目が変わるときだけ書き換える。毎フレーム書くとスマホでコマ落ちする
     const ratio = dragRatio ?? (track.duration ? pos / track.duration : 0);
-    el.seekFill.style.width = el.seekKnob.style.left = `${ratio * 100}%`;
-    el.fill.style.transform = `scaleX(${ratio})`;
-    el.now.textContent = fmt(dragRatio === null ? pos : dragRatio * track.duration);
+    const now = performance.now();
+    if (dragRatio !== null || Math.abs(ratio - paintedRatio) > 0.05 || now - paintedAt > 250) {
+      paintedRatio = ratio;
+      paintedAt = now;
+      el.seekFill.style.width = el.seekKnob.style.left = `${ratio * 100}%`;
+      el.fill.style.transform = `scaleX(${ratio})`;
+      const text = fmt(dragRatio === null ? pos : dragRatio * track.duration);
+      if (text !== paintedTime) el.now.textContent = paintedTime = text;
+    }
 
     if (synced) {
       const i = currentLine(pos + LEAD_MS + lyricOffset);

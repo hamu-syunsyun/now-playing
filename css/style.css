@@ -656,6 +656,15 @@ body.playing .i-play { display: none; }
   *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; }
 }
 
+/* ---------- スマホでは重い描画をやめる ----------
+   行のぼかし、画面全体の粒子、歌詞欄のマスクは、どれも動くたびに描き直しが要る。
+   iPhone ではこれがコマ落ちの原因になるので、濃さと大きさの変化だけで奥行きを出す。 */
+@media (hover: none) {
+  .line { color: inherit; text-shadow: none; transition: opacity .4s ease, transform .5s var(--ease); }
+  body::after { display: none; }
+  [data-lyrics="synced"] .lyrics { -webkit-mask-image: none; mask-image: none; }
+}
+
 /* ホーム画面から開いた iPhone は、画面の高さをステータスバーのぶん短く報告することがある */
 @media (display-mode: standalone) {
   html { min-height: calc(100% + env(safe-area-inset-top)); }
