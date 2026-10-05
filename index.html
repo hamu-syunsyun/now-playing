@@ -15,17 +15,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
-  <link rel="stylesheet" href="css/style.css?v=20261004222602">
+  <link rel="stylesheet" href="css/style.css?v=20261005193350">
   <!-- 画面のプログラムは全部この版番号つきで読む。古いものと新しいものが混ざらないようにするため -->
   <script type="importmap">
   {
     "imports": {
-      "./js/auth.js": "./js/auth.js?v=20261004222602",
-      "./js/color.js": "./js/color.js?v=20261004222602",
-      "./js/panel.js": "./js/panel.js?v=20261004222602",
-      "./js/spotify.js": "./js/spotify.js?v=20261004222602",
-      "./js/lyrics.js": "./js/lyrics.js?v=20261004222602",
-      "./js/demo.js": "./js/demo.js?v=20261004222602"
+      "./js/auth.js": "./js/auth.js?v=20261005193350",
+      "./js/color.js": "./js/color.js?v=20261005193350",
+      "./js/panel.js": "./js/panel.js?v=20261005193350",
+      "./js/spotify.js": "./js/spotify.js?v=20261005193350",
+      "./js/lyrics.js": "./js/lyrics.js?v=20261005193350",
+      "./js/demo.js": "./js/demo.js?v=20261005193350"
     }
   }
   </script>
@@ -114,7 +114,13 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v2H6v4H4zM14 4h6v6h-2V6h-4zM4 14h2v4h4v2H4zM18 14h2v6h-6v-2h4z"/></svg>
   </button>
 
-  <p class="empty" id="empty">Spotifyで曲を再生すると、ここにジャケットと歌詞が出ます。</p>
+  <div class="empty" id="empty">
+    <p>いまは何も再生していません。<br>Spotifyで曲を流すか、ここから選んでください。</p>
+    <div class="empty-actions">
+      <button type="button" class="chip solid" id="emptySearch">曲を探す</button>
+      <button type="button" class="chip" id="emptyLibrary">ライブラリを開く</button>
+    </div>
+  </div>
 
   <div class="bar" id="bar" aria-hidden="true"><div class="bar-fill" id="barFill"></div></div>
 
@@ -141,6 +147,6 @@
   </div>
   <p class="toast" id="toast" role="status"></p>
 
-  <script type="module" src="js/app.js?v=20261004222602"></script>
+  <script type="module" src="js/app.js?v=20261005193350"></script>
 </body>
 </html>

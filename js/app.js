@@ -1,6 +1,7 @@
 import * as auth from './auth.js';
 import { paletteFrom, DEFAULT } from './color.js';
 import { createPanel } from './panel.js';
+import * as lyricsDb from './lyrics.js';
 
 const demo = new URLSearchParams(location.search).has('demo');
 const source = await import(demo ? './demo.js' : './spotify.js');
@@ -21,7 +22,11 @@ const POLL_MS = 2000;
 const LEAD_MS = 150;     // 歌い出しより少し早く行を切り替える。ぴったりだと遅れて見える
 const TUNE_STEP_MS = 250;
 const OFFSETS_KEY = 'lyric_offsets';
-const ACTIVE_AT = 0.42; // いまの行を歌詞欄の上から何割の位置に置くか
+const SCALES = [0.85, 1, 1.2, 1.45]; // 歌詞の文字の大きさ（小・標準・大・特大）
+const SCALE_KEY = 'lyric_scale';
+const portrait = matchMedia('(max-aspect-ratio: 1/1)');
+// いまの行を歌詞欄の上から何割の位置に置くか。縦長では上に寄せて、先の歌詞を多く見せる
+const activeAt = () => (portrait.matches ? 0.3 : 0.42);
 
 let track = null;
 let isPlaying = false;
@@ -148,6 +153,7 @@ async function showTrack(t) {
     shown = true;
     el.title.textContent = t.title;
     el.artist.textContent = t.artist;
+    el.title.parentElement.classList.toggle('link', !!t.albumUri);
     el.all.textContent = fmt(t.duration);
     if (t.art) {
       el.art.src = t.art;
@@ -249,7 +255,7 @@ function placeLyrics() {
   if (!synced || !lineEls.length) return;
   const target = lineEls[Math.max(activeIndex, 0)];
   const center = target.offsetTop + target.offsetHeight / 2;
-  const top = el.lyrics.clientHeight * ACTIVE_AT;
+  const top = el.lyrics.clientHeight * activeAt();
   // 自分で送ったぶんは、歌詞の先頭と末尾を越えないように止める
   const y = Math.min(top, Math.max(top - el.inner.offsetHeight, top - center + browse));
   browse = y - (top - center);
@@ -381,6 +387,7 @@ function apply(pb, at) {
   device = pb.device;
   endKicked = false;
   body.classList.toggle('playing', isPlaying);
+  syncWakeLock();
 }
 
 // ---------- 操作 ----------
@@ -471,11 +478,73 @@ function toggleFullscreen() {
   else document.documentElement.requestFullscreen().catch(() => {});
 }
 
+// ---------- 文字の大きさ ----------
+
+let scaleIndex = Number(localStorage.getItem(SCALE_KEY) ?? 1);
+if (!SCALES[scaleIndex]) scaleIndex = 1;
+function setScale(i) {
+  scaleIndex = i;
+  document.documentElement.style.setProperty('--lyric-scale', SCALES[i]);
+  try { localStorage.setItem(SCALE_KEY, i); } catch { /* 保存できなくても今回は効く */ }
+  requestAnimationFrame(placeLyrics);
+}
+setScale(scaleIndex);
+
+// ---------- 再生中は画面を消さない ----------
+
+let wakeLock = null;
+let wakeBusy = false;
+async function syncWakeLock() {
+  if (!navigator.wakeLock || wakeBusy) return;
+  const want = isPlaying && !document.hidden && body.dataset.view === 'player';
+  if (want === !!wakeLock) return;
+  wakeBusy = true;
+  try {
+    if (want) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } else {
+      await wakeLock.release();
+      wakeLock = null;
+    }
+  } catch { /* 省電力モードなどで断られることがある。そのときは何もしない */ }
+  wakeBusy = false;
+}
+
+// ---------- スリープタイマー ----------
+
+let sleepAt = 0;
+let sleepTimer = 0;
+function setSleep(minutes) {
+  clearTimeout(sleepTimer);
+  sleepAt = minutes ? Date.now() + minutes * 60_000 : 0;
+  if (!minutes) return;
+  sleepTimer = setTimeout(() => {
+    sleepAt = 0;
+    epoch++;
+    source.pause().then(() => toast('スリープタイマーで再生を止めました。'), () => {});
+    kick(500);
+  }, minutes * 60_000);
+}
+
+function reloadLyrics() {
+  const t = track;
+  if (t) source.getLyrics(t).then((l) => { if (track === t) renderLyrics(l); });
+}
+
 const panel = createPanel({
   source,
   toast,
   messageFor,
-  state: () => ({ shuffle, repeat, device, hasSynced: !!synced }),
+  state: () => ({ shuffle, repeat, device, hasSynced: !!synced, hasTrack: !!track?.hasLyrics }),
+  sleep: { set: setSleep, minutesLeft: () => (sleepAt ? Math.max(1, Math.round((sleepAt - Date.now()) / 60_000)) : 0) },
+  lyrics: {
+    scale: () => scaleIndex,
+    setScale,
+    candidates: () => lyricsDb.getCandidates(track),
+    chosen: () => lyricsDb.chosenId(track),
+    choose: (id) => { lyricsDb.choose(track, id); lyricOffset = 0; reloadLyrics(); },
+  },
   tune: showTune,
   changed: () => { epoch++; kick(500); refreshUpNext(1500); },
   relogin: () => auth.login(),
@@ -489,6 +558,25 @@ $('like').addEventListener('click', toggleLike);
 $('openSearch').addEventListener('click', () => panel.open('search'));
 $('openMenu').addEventListener('click', () => panel.open('library'));
 el.art.addEventListener('dblclick', toggleFullscreen);
+$('emptySearch').addEventListener('click', () => panel.open('search'));
+$('emptyLibrary').addEventListener('click', () => panel.open('library'));
+
+// 曲名を押すと、その曲のアルバムを開く
+el.title.parentElement.addEventListener('click', () => {
+  if (!track?.albumUri) return;
+  panel.openCollection({ kind: 'album', id: track.albumUri.split(':').pop(), uri: track.albumUri, title: track.album, sub: '', thumb: track.thumb, images: [{ url: track.art }] });
+});
+
+// ジャケットを横に払うと曲送り（左へ払うと次、右へ払うと前）
+let swipeX = null;
+el.art.addEventListener('touchstart', (e) => { swipeX = e.touches[0].clientX; }, { passive: true });
+el.art.addEventListener('touchend', (e) => {
+  if (swipeX === null) return;
+  const dx = e.changedTouches[0].clientX - swipeX;
+  swipeX = null;
+  if (Math.abs(dx) > 50) act(dx < 0 ? source.next : source.prev);
+}, { passive: true });
+portrait.addEventListener('change', placeLyrics);
 
 if (!document.fullscreenEnabled) $('full').hidden = true; // iPhone は全画面にできない
 
@@ -553,6 +641,7 @@ for (const type of ['pointermove', 'pointerdown', 'keydown']) addEventListener(t
 wake();
 
 document.addEventListener('visibilitychange', () => {
+  syncWakeLock();
   if (!document.hidden && body.dataset.view !== 'setup') kick(0);
 });
 

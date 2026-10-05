@@ -93,6 +93,8 @@ body:not(.playing) .art { box-shadow: 0 16px 40px -18px rgb(0 0 0 / .5), 0 6px 1
 .art img.ready { opacity: 1; }
 
 .meta { margin-top: clamp(14px, 2.8vh, 34px); }
+.meta.link { cursor: pointer; }
+@media (hover: hover) { .meta.link:hover h1 { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: .18em; } }
 .meta h1 {
   font-size: clamp(1.15rem, 1.25vw + 1.2vh, 2.3rem);
   font-weight: 900;
@@ -262,7 +264,7 @@ body.playing .i-play { display: none; }
 
 /* いまの行だけくっきり。離れるほど小さく、薄く、ぼける（--d は今の行からの行数） */
 .line {
-  font-size: clamp(1.3rem, 2.3vw + 1.8vh, 4rem);
+  font-size: calc(clamp(1.3rem, 2.3vw + 1.8vh, 4rem) * var(--lyric-scale, 1));
   font-weight: 700;
   line-height: 1.4;
   letter-spacing: .01em;
@@ -303,7 +305,7 @@ body.playing .i-play { display: none; }
 [data-lyrics="plain"] .lyrics::-webkit-scrollbar { display: none; }
 [data-lyrics="plain"] .lyrics-inner { transform: none !important; }
 [data-lyrics="plain"] .line {
-  font-size: clamp(1.05rem, 1.3vw + 1.3vh, 2.3rem);
+  font-size: calc(clamp(1.05rem, 1.3vw + 1.3vh, 2.3rem) * var(--lyric-scale, 1));
   line-height: 1.6;
   padding: .16em 0;
   opacity: .9;
@@ -368,8 +370,11 @@ body.playing .i-play { display: none; }
     -webkit-mask-image: linear-gradient(transparent, #000 4%, #000 86%, transparent);
             mask-image: linear-gradient(transparent, #000 4%, #000 86%, transparent);
   }
-  .line { font-size: clamp(1.35rem, 5.6vw, 2.4rem); }
-  [data-lyrics="plain"] .line { font-size: clamp(1.05rem, 4.2vw, 1.6rem); }
+  .line { font-size: calc(clamp(1.6rem, 7.2vw, 3rem) * var(--lyric-scale, 1)); line-height: 1.38; }
+  [data-lyrics="plain"] .line { font-size: calc(clamp(1.15rem, 5.1vw, 1.9rem) * var(--lyric-scale, 1)); }
+  .meta h1 { font-size: clamp(1.25rem, 5.6vw, 2.1rem); }
+  .meta p { font-size: clamp(.95rem, 4vw, 1.4rem); }
+  .seek { font-size: .8rem; }
 }
 
 /* ---------- 横に細長く置いたとき：ジャケットと今の行だけ ---------- */
@@ -446,6 +451,10 @@ body.playing .i-play { display: none; }
 .tabs button:hover { opacity: .85; }
 .tabs button[aria-selected="true"] { opacity: 1; background: color-mix(in srgb, currentColor 14%, transparent); }
 .tabs .close { margin-left: auto; font-weight: 500; }
+@media (max-width: 480px) {
+  .tabs { padding: 12px 6px 4px; gap: 0; }
+  .tabs button { padding: .55em .62em; font-size: .8rem; }
+}
 
 .sheet-body {
   flex: 1;
@@ -508,6 +517,8 @@ body.playing .i-play { display: none; }
 .row .chip { opacity: .75; }
 .sheet-body > div > .chip, .sheet-body > .chip { margin: 8px 6px; }
 
+.chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 4px 6px 8px; }
+.chips .sheet-note { padding: 0 4px 0 0; }
 .volume { display: flex; align-items: center; gap: 12px; padding: 4px 6px 8px; }
 .volume input { flex: 1; accent-color: var(--fg); }
 .volume span { min-width: 2.2em; text-align: right; font-variant-numeric: tabular-nums; font-size: .85rem; }
@@ -524,12 +535,15 @@ body.playing .i-play { display: none; }
 /* ---------- 何も再生していないとき ---------- */
 .empty {
   height: 100dvh;
-  place-items: center;
+  place-content: center;
+  justify-items: center;
+  gap: 1.6rem;
   padding: var(--pad);
   text-align: center;
-  font-size: clamp(1rem, 1vw + 1vh, 1.5rem);
-  opacity: .7;
 }
+.empty p { font-size: clamp(1.05rem, 1vw + 1.1vh, 1.6rem); font-weight: 700; line-height: 1.8; opacity: .8; }
+.empty-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.empty .chip { font-size: .95rem; padding: .7em 1.4em; }
 
 /* ---------- 最初の設定 ---------- */
 .setup {

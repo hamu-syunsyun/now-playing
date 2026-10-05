@@ -32,10 +32,21 @@ export function createPanel(deps) {
     document.activeElement?.blur();
   }
 
-  function show(name) {
+  function mark(name) {
     tab = name;
     seq++;
     for (const b of tabs) b.setAttribute('aria-selected', b.dataset.tab === name);
+  }
+
+  // アルバムなどの中身を直接開く（曲名を押したとき用）
+  function openCollection(col) {
+    sheet.hidden = false;
+    mark('library');
+    showCollection(col, () => show('library'));
+  }
+
+  function show(name) {
+    mark(name);
     body.replaceChildren();
     VIEWS[name]();
   }
@@ -248,6 +259,7 @@ export function createPanel(deps) {
         } else if (active) {
           nodes.push(note('いまの端末は、ここから音量を変えられません（iPhoneなど）。本体のボタンで調整してください。'));
         }
+        nodes.push(heading('スリープタイマー'), sleepChips(), note('決めた時間がたつと再生を止めます。この画面を開いているあいだだけ働きます。'));
         nodes.push(heading('鳴らす端末'), h('ul', { className: 'rows' }, ...devices.map((d) => row({
           title: d.name,
           sub: [TYPES[d.type] || d.type, d.active ? 'いま鳴っている端末' : ''].filter(Boolean).join('　'),
@@ -258,7 +270,53 @@ export function createPanel(deps) {
     },
   };
 
+  // 選べる値を並べたボタン列。current と同じ値のものを塗る
+  function choices(items, current, onPick) {
+    const box = h('div', { className: 'chips' });
+    const paint = (value) => {
+      box.replaceChildren(...items.map(([label, v]) => h('button', {
+        className: v === value ? 'chip solid' : 'chip', type: 'button', textContent: label,
+        onclick: () => { onPick(v); paint(v); },
+      })));
+    };
+    paint(current);
+    return box;
+  }
+
+  function sleepChips() {
+    const left = deps.sleep.minutesLeft();
+    const box = choices([['オフ', 0], ['15分', 15], ['30分', 30], ['60分', 60]], left ? -1 : 0, (min) => {
+      deps.sleep.set(min);
+      toast(min ? `${min}分後に再生を止めます。` : 'スリープタイマーを切りました。');
+    });
+    if (left) box.prepend(h('span', { className: 'sheet-note', textContent: `あと約${left}分` }));
+    return box;
+  }
+
+  function candidateList(target) {
+    load(target, async () => {
+      const list = await deps.lyrics.candidates();
+      if (!list.length) return [note('ほかの歌詞データは見つかりませんでした。')];
+      const chosen = deps.lyrics.chosen();
+      const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+      const rows = list.map((c) => row({
+        title: `${c.title} – ${c.artist}`,
+        sub: [c.album, mmss(c.duration), c.synced ? '歌に合わせて進む' : '時刻なし', c.id === chosen ? '使用中' : ''].filter(Boolean).join('　'),
+        onClick: () => { close(); deps.lyrics.choose(c.id); toast('歌詞データを切り替えました。'); },
+      }));
+      const nodes = [note('曲の長さが近い順に並んでいます。長さがいまの曲と同じものほど、タイミングが合いやすくなります。'), h('ul', { className: 'rows' }, ...rows)];
+      if (chosen) nodes.unshift(h('button', { className: 'chip', textContent: '自動で選ぶ状態に戻す', onclick: () => { close(); deps.lyrics.choose(null); } }));
+      return nodes;
+    });
+  }
+
   VIEWS.lyrics = () => {
+    body.append(heading('文字の大きさ'), choices([['小', 0], ['標準', 1], ['大', 2], ['特大', 3]], deps.lyrics.scale(), deps.lyrics.setScale));
+    if (deps.state().hasTrack) {
+      const box = h('div');
+      body.append(heading('歌詞データ'), h('button', { className: 'chip', textContent: '別の歌詞データを探す', onclick: () => candidateList(box) }), box);
+    }
+    body.append(heading('タイミング'));
     if (!deps.state().hasSynced) {
       body.append(note('この曲には、歌に合わせて進む歌詞がありません。合わせられるのは、行ごとに時刻がついた歌詞だけです。'));
       return;
@@ -274,5 +332,5 @@ export function createPanel(deps) {
   document.getElementById('closeSheet').addEventListener('click', close);
   sheet.addEventListener('click', (e) => { if (e.target === sheet) close(); });
 
-  return { open, close, isOpen };
+  return { open, close, isOpen, openCollection };
 }
